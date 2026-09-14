@@ -39,7 +39,7 @@
       "executable": false
     },
     "TEST-REPORT.md": {
-      "sha256": "44e8b3f9e7ebbfee3ae2ca165d56711bfa3a999316d985856d3621ffda2e7108",
+      "sha256": "728de6426c793d433e656a762bfb2399772aa39f10ca5536c53c6ed26b7c4573",
       "executable": false
     },
     "THIRD_PARTY_NOTICES.md": {
@@ -271,11 +271,11 @@
       "executable": false
     },
     "tests/test_review.py": {
-      "sha256": "8da6ac63c4e94a005d86229da28e16d82489e24f53758181175bc2c2e1974fb6",
+      "sha256": "15861b6f1737690a61c52894225d181d2aaa5f58f23bc9e3bea9bf55b7891d14",
       "executable": false
     },
     "tests/test_stack.py": {
-      "sha256": "90d4fdb762066570c87d695de3bbca10ff55e8612960706f95f320ba20d78128",
+      "sha256": "fb8701c65e37fb32f02426b2499de0c5db20a66d1866f07267fa50ff9a3f9c93",
       "executable": false
     },
     "tests/test_v03.py": {

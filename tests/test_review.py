@@ -204,7 +204,22 @@ class BackupRecoveryTests(unittest.TestCase):
                 return NS(returncode=0,stdout=b'')
             def restic(*args,**kwargs):
                 return NS(returncode=0,stdout=b'{"message_type":"summary","snapshot_id":"abcdef12"}\n')
-            with tempfile.TemporaryFile(mode='w+') as guard,patch.object(operations,'STATE',state),patch.object(operations,'initialize'),patch.object(operations,'own_volumes',return_value={}),patch.object(operations,'running_containers',return_value=['abc123']),patch.object(operations,'run',side_effect=command),patch.object(operations,'restic',side_effect=restic),patch.object(operations,'open',return_value=guard,create=True):
+            real_exists=pathlib.Path.exists
+            def fixture_exists(path):
+                # This unit test owns only its temporary state tree. Do not stat
+                # /etc/sudoers.d or other deployment paths on an unprivileged CI host.
+                return real_exists(path) if path.is_relative_to(state) else False
+            with (
+                tempfile.TemporaryFile(mode='w+') as guard,
+                patch.object(operations,'STATE',state),
+                patch.object(operations,'initialize'),
+                patch.object(operations,'own_volumes',return_value={}),
+                patch.object(operations,'running_containers',return_value=['abc123']),
+                patch.object(operations,'run',side_effect=command),
+                patch.object(operations,'restic',side_effect=restic),
+                patch.object(operations,'open',return_value=guard,create=True),
+                patch.object(pathlib.Path,'exists',autospec=True,side_effect=fixture_exists),
+            ):
                 with self.assertRaises(stacklib.StackError):operations.backup()
             receipt=json.loads((state/'backup-resume.json').read_text())
             self.assertEqual(receipt['state'],'FAIL');self.assertEqual(receipt['snapshot'],'abcdef12')

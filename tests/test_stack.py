@@ -110,8 +110,12 @@ class NetworkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             with self.assertRaises(ValueError): document_read.resolve_inside('/etc/passwd',pathlib.Path(t))
     def test_no_command_secret_leak(self):
-        with patch('stacklib.subprocess.run',return_value=__import__('subprocess').CompletedProcess(['tool'],1,b'',b'LEAK_ME')):
+        # Patch the actual capture boundary; subprocess.run is no longer used.
+        # This must not search PATH for a real executable named 'tool'.
+        with patch('process_guard.run_bounded',return_value=__import__('subprocess').CompletedProcess(['tool'],1,b'',b'LEAK_ME')) as capture:
             with self.assertRaises(StackError) as e:stacklib.run(['tool','SECRET_VALUE'])
+            capture.assert_called_once()
+            self.assertIn('exit code 1',str(e.exception))
             self.assertNotIn('SECRET_VALUE',str(e.exception));self.assertNotIn('LEAK_ME',str(e.exception))
 
 class PackagePolicyTests(unittest.TestCase):

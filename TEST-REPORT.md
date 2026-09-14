@@ -33,9 +33,28 @@ roundtrip, full gstack harness, GBrain new-conversation retrieval, service cgrou
 ipv4/ipv6 egress enforcement, actual restic recovery, and GitHub create/push.
 No performance, token-cost, free-tier billing or multi-tenant safety claim.
 
-A GitHub repository lookup returned 404 under the current connector. This session
-does not expose a repository-create action or an authenticated local gh client.
-The local publication helper is included and offline-tested; it was NOT applied.
+At original package authoring, repository lookup returned 404 and publication was
+not performed. After the owner created the private repository, the reviewed 71-file
+tree was published through the GitHub connector as commit
+`d4d61e9932fa0516277a2c047bb9e20f12f23f07`. Its tree matched the local ZIP exactly.
+This publication is separate from live OCI/model/Buzz execution.
+
+## Publication-time CI follow-up
+
+The first GitHub Actions run reached the tests but failed one backup fixture:
+`Path.exists()` attempted to stat `/etc/sudoers.d/oracle-public-reader` on an
+unprivileged runner. The fixture now limits existence checks to its temporary
+state tree; no sudo is added to CI and no production permission check is weakened.
+
+A local non-root replay also exposed an obsolete mock in the secret-redaction test:
+it patched `subprocess.run` although the implementation calls `run_bounded`.
+The mock now targets the real boundary and asserts the expected nonzero-exit path,
+without looking up a real `tool` executable in PATH.
+
+After these two test-only changes, **all 159 tests passed as the unprivileged
+`nobody` account** in the local container. Deployment scripts are unchanged. The
+package manifest was regenerated for the reviewed test/report changes. The latest
+GitHub Actions run, not this local result, is the evidence for remote CI status.
 
 ## Re-run and integrity
 
