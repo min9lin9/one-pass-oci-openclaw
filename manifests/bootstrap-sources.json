@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "sources": [
+    {"id":"oci-instance-creator","repo":"min9lin9/oci-instance-creator","ref":"main","usage":"Reviewed upstream launch workflow; scripts/oci_provision.py is an explicit safety adaptation, not unmodified upstream execution."},
+    {"id":"gbrain","repo":"garrytan/gbrain","ref":"latest-stable","usage":"Operations only; memory-only PGLite, no embedding/enrichment/API key delegation."},
+    {"id":"ecc","repo":"affaan-m/ECC","ref":"main","usage":"Read-only planner/architect methodology and development TDD/review methodology; no host plugin, hooks, or Anthropic defaults imported."}
+  ],
+  "roles": {
+    "operations": {"exclusive":["gbrain","gstack"],"entry_channel":"buzz"},
+    "planning": {"ecc_files":["agents/planner.md","agents/architect.md"],"code_mutation":false},
+    "development": {"ecc_files":["agents/tdd-guide.md","agents/code-reviewer.md"],"production_access":false}
+  }
+}

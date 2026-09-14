@@ -1,0 +1,18 @@
+name: Offline skill checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Unit, syntax, and manifest checks (no OCI / model auth)
+        run: |
+          python3 scripts/check.py
+          python3 scripts/publish.py

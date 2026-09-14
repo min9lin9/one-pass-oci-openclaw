@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "repository": "min9lin9/one-pass-oci-openclaw",
+  "files": {
+    ".github/workflows/ci.yml": {
+      "sha256": "57e623f3049ee1910c570f14c55a85b118d947d42246c65f45035823ab445123",
+      "executable": false
+    },
+    ".gitignore": {
+      "sha256": "e5e2d89a388a1d802519b2466b9ef8b386672773a2cbd4d47bee9f39a5fff753",
+      "executable": false
+    },
+    "AGENTS.md": {
+      "sha256": "2e9836cc4fed313264845377cdf42c9a2f6fa5a17575fb4ef1c3706d800db277",
+      "executable": false
+    },
+    "CHANGELOG.md": {
+      "sha256": "dc5274423b572f86af09e2c92c9ff9ae9a610eed29d688b137f0f619c0ae7dc2",
+      "executable": false
+    },
+    "LICENSE": {
+      "sha256": "8e002358e0b8ace6460312482f7598642ae173c35fec3d2d14436652bb526503",
+      "executable": false
+    },
+    "README.md": {
+      "sha256": "41f5e18b4c223e736eff31a0c3fc3444f13eb072bd5e063168f3e6a85d52ec00",
+      "executable": false
+    },
+    "REVIEW.md": {
+      "sha256": "440d599bd3f615ae48c61232645aa46eab859f4efa1d96539c5672a136b9cfe7",
+      "executable": false
+    },
+    "SECURITY.md": {
+      "sha256": "4154863fc017dd9a9fec505eeef2a7b81a9ea90c6ffcb0c7e23fbce190a34d47",
+      "executable": false
+    },
+    "SKILL.md": {
+      "sha256": "2c9bd2a6f73f5cd758b0989244b90ea0d9893fed3fea6adbf1f2af1c29330f31",
+      "executable": false
+    },
+    "TEST-REPORT.md": {
+      "sha256": "44e8b3f9e7ebbfee3ae2ca165d56711bfa3a999316d985856d3621ffda2e7108",
+      "executable": false
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "f5cda3ce9102cc09de621ff12ff9d128d275fec611c07dc16345145bf51efbcf",
+      "executable": false
+    },
+    "VERSION": {
+      "sha256": "c318748a42e175b2d9ae37251931eeb1b22eb7f6b324af0689121f0e034db629",
+      "executable": false
+    },
+    "adapters/gbrain-memory/SKILL.md": {
+      "sha256": "2bd9c7fe1475f5eeb33632f6b89e5364dc2c785a9cac8823b9cebd00edca0853",
+      "executable": false
+    },
+    "adapters/insane-search/SKILL.md": {
+      "sha256": "7c39f70059265a1f8ebeaf4fc84a069361e1592b7f2d5e4a2ee03135dfb27102",
+      "executable": false
+    },
+    "adapters/local-document-reader/SKILL.md": {
+      "sha256": "230eadeab6ef3f4bb443e16b30b6ab88e7c2249c8d12af05472e8086fa3af23b",
+      "executable": false
+    },
+    "adapters/mcp-bridge/SKILL.md": {
+      "sha256": "cb6fc35a34e521b8cf5f7e5ef1c9ba1753f262579323c056b2786231b2167d63",
+      "executable": false
+    },
+    "adapters/operations-orchestrator/SKILL.md": {
+      "sha256": "68aa7cc6aa32a31b763dac5ac11f4f93632ca258670fd76ba9c6c75752758905",
+      "executable": false
+    },
+    "adapters/pretty-mermaid/SKILL.md": {
+      "sha256": "f33d2ee129608890ac3c3eadc8966e561114a7f72d5e3a523bd2229937acacc3",
+      "executable": false
+    },
+    "adapters/self-learning-proposals/SKILL.md": {
+      "sha256": "5558c5483b65e4a19f200e4e5bdb8a4b14d678a4111627513de04c7fc6c59240",
+      "executable": false
+    },
+    "agents/openai.yaml": {
+      "sha256": "a4b0fd107c27a644912cc85f94032a2528beaf457e31dd590ac9585f5587ab56",
+      "executable": false
+    },
+    "manifests/bootstrap-sources.json": {
+      "sha256": "241ef4b76b3ff93e790bc3821aa33a1900c18781daee17374557b9db615dc293",
+      "executable": false
+    },
+    "manifests/extensions.json": {
+      "sha256": "f847bec72553871f4fbae78e3b7469d7c4fa63398efc9c60b8cb2e472232a956",
+      "executable": false
+    },
+    "references/acceptance.md": {
+      "sha256": "f1dad66261446c2a2e368dc60bf5eebcde33183cdbdd251ae730caf6a02b1f53",
+      "executable": false
+    },
+    "references/buzz.md": {
+      "sha256": "60a4468098c0998e7a719c44f7d4df66e24c5278cfa48902ae0e4a2884dbd4eb",
+      "executable": false
+    },
+    "references/catalog.md": {
+      "sha256": "b542f6f9275ef2425c9cfeadbd6e5335b115168f450dfe7643cc5b2153c6dcdf",
+      "executable": false
+    },
+    "references/gstack.md": {
+      "sha256": "9c0dd9745fa025d0b24395d050ec915b3f8e47e1b6c4442a80c18d350c36cb5e",
+      "executable": false
+    },
+    "references/lifecycle.md": {
+      "sha256": "8cfc17fa281eae7149371164fe5af6c9e919811bb3a02916633a39340c1d6e0c",
+      "executable": false
+    },
+    "references/oci-provisioning.md": {
+      "sha256": "dd2a77124bc4ca4d99a74f3bbc1229b9cb513f06c4946169e3489192a957db46",
+      "executable": false
+    },
+    "references/offline-test-log.md": {
+      "sha256": "52468bd7015be9c34b70900daed31b78977409d555a5047cc7fb3e12c7896eda",
+      "executable": false
+    },
+    "references/profiles-and-auth.md": {
+      "sha256": "45b58a14508d9f5bc7d3741c5a070a025bb68fbce971c1227c43371a74768416",
+      "executable": false
+    },
+    "references/source-review.md": {
+      "sha256": "bf3a8e20c37b1697a3d5c51414f7f73716c7bbe9dc12d20a40f6000841696a95",
+      "executable": false
+    },
+    "references/sources.md": {
+      "sha256": "cd39001d2071537149eb39d01e49b6c3732c4147df689f0047fa9eb687b865d3",
+      "executable": false
+    },
+    "scripts/acceptance.py": {
+      "sha256": "ca971af9bb141eab33cdb8f4c0557f4aed5c4767090f3836ac952cef2eb3b166",
+      "executable": false
+    },
+    "scripts/check.py": {
+      "sha256": "04f466eb95c9aec12b4209ddfb98b9a2f474e571a6158dc0f4a3b062dbe27a6f",
+      "executable": false
+    },
+    "scripts/dispatch.py": {
+      "sha256": "9c8243abf73f6f0bdf0f6ac961bd4c5a775e493d7c55e7442a6bc9e85f289a70",
+      "executable": false
+    },
+    "scripts/document_read.py": {
+      "sha256": "36d0980433b0f3a2ee2ad2fb042338d179044ca3eb36ed2473f109874dd478ea",
+      "executable": false
+    },
+    "scripts/evidence.py": {
+      "sha256": "57aa245fce1597799bcb94fc150fc37d1795fd13756e90d3cd8769e38abdeccb",
+      "executable": false
+    },
+    "scripts/extensions.py": {
+      "sha256": "c6d0fec897e8598b741badf22d2b058834a45a56b9507a47a3c5ea9ca051a69f",
+      "executable": false
+    },
+    "scripts/fetch_egress.sh": {
+      "sha256": "6e2e90dd5500fb1572ef0793c7978cccbef7b3096798b01e46f3ffd2be7882d6",
+      "executable": false
+    },
+    "scripts/fetch_runtime_setup.py": {
+      "sha256": "71f9ddee78834e25755ff73f69538de99c484d18ec60d6641e4f2830ca438c60",
+      "executable": false
+    },
+    "scripts/fssecure.py": {
+      "sha256": "4ce7881add8c1a83a79c4cd91fc78f4dfc8357f8e550bc8b97ba341e3dabbe02",
+      "executable": false
+    },
+    "scripts/gbrain_install.py": {
+      "sha256": "fe6f729a410e4edc9ec5277a6ea8b7f8ff139f5a9535dafbd19340be9361bbff",
+      "executable": false
+    },
+    "scripts/gstack_full.py": {
+      "sha256": "eaa184ce4868ec6e696b04094f79d06aa128346ea256a032888663704d89dac4",
+      "executable": false
+    },
+    "scripts/install_skill.py": {
+      "sha256": "5f7136618c8bb8c9906483a1c48fd4090928306478ecdf581fe433101a5427d2",
+      "executable": false
+    },
+    "scripts/mcp_bridge.py": {
+      "sha256": "7929112ddd380366d3fa8e02702e1ec3ca935639f57d9ab2965676261094ca3b",
+      "executable": false
+    },
+    "scripts/memory_cli.py": {
+      "sha256": "6a8e083be9fe71fba9efcc5925f5c5aaa47ae4fd30f1003902e611f958614471",
+      "executable": false
+    },
+    "scripts/oci_provision.py": {
+      "sha256": "49283645335431d02d8e7eb39b0ff9d2af49849174168fcb191f3e15f10d6b36",
+      "executable": false
+    },
+    "scripts/operations.py": {
+      "sha256": "597031de4a57d1c7db1d4d5ec766bff6e0ba190517ebeb40a6d6eb82b27cfa0f",
+      "executable": false
+    },
+    "scripts/operator_lock.py": {
+      "sha256": "38975500b07f4cfe40148afdd4721134e2ede39ffb66fa4e76c77c54f8df030f",
+      "executable": false
+    },
+    "scripts/ops_adapters.py": {
+      "sha256": "53e03be14e91f2051269e7977c9f1d3b5baacd09545e0a36ed2439353e237429",
+      "executable": false
+    },
+    "scripts/package_manifest.py": {
+      "sha256": "4425fb7f53d1b291b18bbeb4c47e252ed768bbbb52ca638bb198a8bd74cf130e",
+      "executable": false
+    },
+    "scripts/process_guard.py": {
+      "sha256": "ff94a4070e3c56d4c5c5adb4e66a96c65a71a4d1f1814946ff5b11ece8ae44d2",
+      "executable": false
+    },
+    "scripts/profile_admin.py": {
+      "sha256": "2736b4fe97bd675844cf39f5d1dd3c9152a09fc4659f2b994ab9807a8005eff5",
+      "executable": false
+    },
+    "scripts/profile_spec.py": {
+      "sha256": "c514a6f1a0543d7a0ca445fa63c61328d412f604a2641c8cc5cb2f398aa099e2",
+      "executable": false
+    },
+    "scripts/profiles_runtime.py": {
+      "sha256": "e37226252053d0dd41742cd6406bc2e65e3c5225328a2a632e4e41babc608f20",
+      "executable": false
+    },
+    "scripts/public_read.py": {
+      "sha256": "c45c8493c849e2199bafec7159ac8aa6567a852b5be514715d7b63759e8f1230",
+      "executable": false
+    },
+    "scripts/publish.py": {
+      "sha256": "ac2017128e2ceb3df12c4ed9fb2b0fcfdd52ac3430a198bf2dea646608bdfade",
+      "executable": false
+    },
+    "scripts/remote.py": {
+      "sha256": "aa24e577b323ad4a560580389ab055107a02feb53cfa6cd4ae991ca6f60fa661",
+      "executable": false
+    },
+    "scripts/runtime_setup.py": {
+      "sha256": "10124f3c9cb85dbc44bff37eff21f501fba7e9d835042124ab076bc87c521635",
+      "executable": false
+    },
+    "scripts/stack.py": {
+      "sha256": "b5082641abdd19b6886bf700e46c99c47823904edbe63204bcbcd00d225f899d",
+      "executable": false
+    },
+    "scripts/stacklib.py": {
+      "sha256": "afeae5f8a11cde380e9fcf69348888a42a95efee2b8e594ceeab827f126dc4a4",
+      "executable": false
+    },
+    "scripts/target_preflight.py": {
+      "sha256": "0412164c0608be5718db511175cc86f95c2ba186b25448a6b8d59e718cb50da4",
+      "executable": false
+    },
+    "scripts/worker_bridge.py": {
+      "sha256": "0207b1c56ad05a70ba97e58701ae4ce068724bf3137015595bcb732a7897724d",
+      "executable": false
+    },
+    "templates/profiles/development/AGENTS.md": {
+      "sha256": "d4bdc87143504811d1a1e303d3ab38049fd41ec36cf03aa0ebc3be441127804a",
+      "executable": false
+    },
+    "templates/profiles/operations/AGENTS.md": {
+      "sha256": "ef668fd3f14895092f3d7d4eaf42cdf0cd102f66bcbd0f60e06d07fdf1397927",
+      "executable": false
+    },
+    "templates/profiles/planning/AGENTS.md": {
+      "sha256": "2e5a2e1f02975e03b8eea3fdb5081f1764f70cafedcd115f78b47e3965a85b63",
+      "executable": false
+    },
+    "templates/secrets.env.example": {
+      "sha256": "e209c32038e03e9703ad64e1f0845c5d2ce551fb3f4ffda7a0d4a710cf4920ac",
+      "executable": false
+    },
+    "tests/test_review.py": {
+      "sha256": "8da6ac63c4e94a005d86229da28e16d82489e24f53758181175bc2c2e1974fb6",
+      "executable": false
+    },
+    "tests/test_stack.py": {
+      "sha256": "90d4fdb762066570c87d695de3bbca10ff55e8612960706f95f320ba20d78128",
+      "executable": false
+    },
+    "tests/test_v03.py": {
+      "sha256": "33e85672ee89caaed72d74c3c9090e5134d811ec629be9da409a7e932fc72d67",
+      "executable": false
+    }
+  }
+}

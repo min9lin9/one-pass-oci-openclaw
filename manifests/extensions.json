@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "profile": "personal-openclaw-buzz",
+  "sources": [
+    {"id":"prompt-engineering","repo":"min9lin9/prompt-engineering-skills","ref":"master","required":true,"skills":["skills/prompt-engineering-guide","skills/prompt-variation-guide"],"runtime":"none"},
+    {"id":"gstack","repo":"garrytan/gstack","ref":"main","required":true,"skills":["openclaw/skills/gstack-openclaw-office-hours","openclaw/skills/gstack-openclaw-ceo-review","openclaw/skills/gstack-openclaw-investigate","openclaw/skills/gstack-openclaw-retro"],"runtime":"native-methodology","advanced":"Full Codex-host install is a separate verified capability, not a native OpenClaw port."},
+    {"id":"insane-search","repo":"min9lin9/insane-search","ref":"main","required":true,"skills":[],"adapter":"insane-search","runtime":"isolated-python","source_path":"skills/insane-search"},
+    {"id":"self-learning","repo":"min9lin9/self-learning-skills","ref":"main","required":true,"skills":[],"adapter":"self-learning-proposals","runtime":"none","source_path":"skills/self-learning"},
+    {"id":"baoyu-diagram","repo":"min9lin9/baoyu-skills","ref":"main","required":true,"skills":["skills/baoyu-diagram"],"runtime":"none"},
+    {"id":"pretty-mermaid","repo":"min9lin9/pretty-mermaid-skills","ref":"main","required":true,"skills":[],"adapter":"pretty-mermaid","runtime":"node","source_path":"."},
+    {"id":"markitdown","repo":"min9lin9/markitdown","ref":"main","required":true,"skills":[],"adapter":"local-document-reader","runtime":"python-package","source_path":"packages/markitdown"},
+    {"id":"mcporter","repo":"min9lin9/mcporter","ref":"main","required":true,"skills":[],"adapter":"mcp-bridge","runtime":"npm-registry","npm_package":"mcporter","npm_version":"0.11.0","source_path":"."}
+  ],
+  "host_tools": [
+    {"id":"restic","source":"https://restic.readthedocs.io/en/stable/","install":"signed Ubuntu package","role":"encrypted coherent backups; operator only"},
+    {"id":"gitleaks","source":"https://github.com/gitleaks/gitleaks","install":"signed Ubuntu package","role":"redacted secret scanning; not a proof of safety"}
+  ],
+  "star_repositories": ["min9lin9/prompt-engineering-skills"],
+  "policy": {"arbitrary_source_auto_execute":false,"allow_paid_autoactivation":false,"enable_telemetry":false,"auto_publish":false,"auto_self_modify":false,"max_browser_concurrency":1,"max_fetch_seconds":90}
+}
