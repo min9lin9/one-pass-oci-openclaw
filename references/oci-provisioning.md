@@ -13,7 +13,7 @@ The v0.3 adapter deliberately changes these properties:
 | resources | A1 2 OCPU/12GB, boot50 default |
 | discovery | tenancy home region/AD/Ubuntu24.04 image + A1 compatibility |
 | network | existing public subnet preserved, or dedicated tagged VCN/IGW/route/SL/subnet |
-| ingress | only specified public SSH CIDR:22; no public 80/443/application ports |
+| ingress | specified SSH CIDR:22; public mode adds TCP443, Tailscale mode does not; no native Gateway ports |
 | SSH identity | API-signed console-history fingerprint -> keyscan comparison |
 | retries | bounded exponential backoff/jitter; no hidden cron/GitHub Action |
 | idempotency | deployment tags + OCID + stable request token + intent hash |
@@ -40,7 +40,10 @@ Quota/IAM/configuration failures stop. Never turn a free-only account into paid 
 The package does not calculate authoritative tenancy-wide bills or create IAM users/policies.
 API permissions may be restricted by compartment. Provide an authorized existing subnet
 to avoid new network writes. Existing subnet routing/NSG/SL is inspected only to the extent
-needed for a public VNIC; inaccessible SSH fails closed, never broadens firewall access.
+needed for a public VNIC; inaccessible SSH fails closed, never broadens SSH access.
+Public HTTPS also needs TCP443 in the existing subnet/NSG. The operator checks that
+prerequisite or applies a scoped authorized rule; shared existing lists are not
+silently rewritten. Host firewall and OCI network ingress are separate layers.
 
 Source acquisition, SDK dependencies and host installers need network access on the user's
 PC. The embedded ZIP contains no OCI SDK wheel or third-party source archive. prepare pins

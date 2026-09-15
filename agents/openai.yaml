@@ -1,6 +1,6 @@
 interface:
   display_name: "One-pass OCI OpenClaw"
-  short_description: "Provision and operate private OpenClaw + Buzz on Oracle ARM"
-  default_prompt: "Use $one-pass-oci-openclaw to build my Oracle OpenClaw + Buzz environment from OCI variables, with isolated operations/planning/development profiles, GBrain/gstack on operations, OpenCode API or ChatGPT auth, and the curated extension bundle."
+  short_description: "Install OpenClaw on OCI with public HTTPS or optional Tailscale"
+  default_prompt: "Use $one-pass-oci-openclaw to check my prerequisites and install OpenClaw on OCI or my existing supported host. Use authenticated public HTTPS by default, Tailscale only if selected, isolated operations/planning/development profiles, and my existing model/auth choices. Run the installation steps for me; request only missing information or necessary human login. Follow the documented automatic repository Star behavior and report actual verification separately from pending work."
 policy:
   allow_implicit_invocation: false

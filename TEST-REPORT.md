@@ -1,4 +1,33 @@
-# OpenClaw-only transition — 2026-09-15
+# Public mode and bootstrap — 2026-09-15
+
+`python3 scripts/check.py` passed **215 tests** on macOS ARM64. Changed Python
+diagnostics were clean; the agent YAML parsed successfully with Psych.
+The YAML language server is not installed, so no YAML LSP result is claimed.
+
+Failing-first checks covered default Tailscale downloads, structured Star status,
+existing Tailnet reuse, reviewed alias extraction, explicit license evidence and
+the OCI pre-UFW rejection. The initial direct bootstrap test command used macOS's
+symlinked temporary directory; the packaged checker and focused replays use
+`TMPDIR=/private/tmp` rather than weakening filesystem checks.
+Final review also covered interrupted initial installation: the chosen bootstrap
+mode is recorded before host mutation and reused only while bootstrapping.
+A completed host with lost network metadata still requires an explicit mode.
+The environment parser retains its string-value type contract.
+
+Fresh source preparation completed for all eight catalog sources and core
+bootstraps; no upstream installer ran in that test and no review was fabricated.
+Gitleaks scanned all four existing Git commits without leaks. GitHub visibility
+is public and an unauthenticated API request confirmed `private:false`.
+The actual repository Star was verified through the authenticated GitHub API.
+
+Live public HTTPS now returns200 both through the forced public-IP path and normal
+DNS after a WineyCellar-only TCP443 NSG was attached. Anonymous Gateway connect was
+rejected with `NOT_PAIRED` / `DEVICE_IDENTITY_REQUIRED`. These transport/auth checks
+are separate from the source suite; see `references/public-installation.md`.
+A fresh authenticated web turn returned `PUBLIC_ACCESS_QA_C18D4`, with public
+HTTPS peers observed during the exchange and the resulting screenshot viewed.
+
+# Historical OpenClaw-only transition — 2026-09-15
 
 On macOS ARM64, `python3 scripts/check.py` passed **167 tests**. Python, shell
 and JSON checks passed; changed Python files had no LSP errors.

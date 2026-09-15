@@ -7,7 +7,7 @@ No cloud/API private key, DNS token, or Tailscale key is copied to a VM.
 from __future__ import annotations
 import base64, contextlib, fcntl, hashlib, ipaddress, json, os, pathlib, random, re, secrets, sys, time, uuid
 from types import SimpleNamespace
-from stacklib import StackError, atom_json, private_file, require, run
+from stacklib import StackError, access_mode, atom_json, private_file, require, run
 
 SHAPE='VM.Standard.A1.Flex'
 HOSTKEY_BEGIN='OAS_HOSTKEY_BEGIN'
@@ -22,6 +22,7 @@ def normalized(cfg: dict) -> dict:
         if c.get(old) and c.get(new) and c[old]!=c[new]: raise StackError('Conflicting OCI setting aliases')
         if c.get(old): c[new]=c[old]
     require(c,'OCI_USER','OCI_FINGERPRINT','OCI_TENANCY','OCI_REGION','OCI_KEY_FILE','DOMAIN')
+    c['ACCESS_MODE']=access_mode(c)
     for key,kind in [('OCI_USER','user'),('OCI_TENANCY','tenancy')]:
         if not re.fullmatch(r'ocid1\.'+kind+r'\.[A-Za-z0-9.-]+',c[key]): raise StackError('Invalid '+key)
     c.setdefault('OCI_COMPARTMENT',c['OCI_TENANCY'])
@@ -85,6 +86,34 @@ def safe_error(exc: Exception) -> str:
 
 
 def model(oci,name,**kwargs): return getattr(oci.core.models,name)(**kwargs)
+
+
+def desired_ingress_rules(cfg,oci):
+    def tcp(port):
+        return model(oci,'TcpOptions',destination_port_range=model(oci,'PortRange',min=port,max=port))
+    rules=[model(oci,'IngressSecurityRule',source=cfg['OCI_SSH_ALLOWED_CIDR'],source_type='CIDR_BLOCK',
+                 protocol='6',tcp_options=tcp(22),is_stateless=False)]
+    if access_mode(cfg)=='public':
+        rules.append(model(oci,'IngressSecurityRule',source='0.0.0.0/0',source_type='CIDR_BLOCK',
+                     protocol='6',tcp_options=tcp(443),is_stateless=False))
+    return rules
+
+
+def ingress_disposition(cfg):
+    if cfg['OCI_CREATE_NETWORK']=='false':
+        return 'UNMANAGED_SUBNET_REVIEW_REQUIRED'
+    return 'MANAGED_PUBLIC_HTTPS_443' if access_mode(cfg)=='public' else 'MANAGED_TAILSCALE_SSH_ONLY'
+
+
+def ingress_key(rule):
+    ports=getattr(getattr(rule,'tcp_options',None),'destination_port_range',None)
+    return (getattr(rule,'source',None),getattr(rule,'source_type',None),str(getattr(rule,'protocol',None)),
+            getattr(ports,'min',None),getattr(ports,'max',None),bool(getattr(rule,'is_stateless',False)))
+
+
+def infrastructure_proposal(proposal):
+    """Keep operational access-mode metadata out of the immutable VM request."""
+    return {k:v for k,v in proposal.items() if k not in ('access_mode','https_ingress')}
 
 
 class Provisioner:
@@ -171,6 +200,7 @@ class Provisioner:
           'shape':SHAPE,'ocpus':2,'memory_gb':12,'boot_volume_gb':int(c['OCI_BOOT_VOLUME_GB']),
           'subnet':c.get('OCI_SUBNET'), 'create_network':c['OCI_CREATE_NETWORK']=='true',
           'ssh_cidr':c.get('OCI_SSH_ALLOWED_CIDR'),'instance_name':c['OCI_INSTANCE_NAME'],
+          'access_mode':c['ACCESS_MODE'],'https_ingress':ingress_disposition(c),
           'free_tier_note':'Resource size is capped, not a billing guarantee. Check aggregate tenancy usage/quota.'}
         atom_json(self.path.parent/'oci-plan.json',proposal)
         return proposal
@@ -194,7 +224,9 @@ class Provisioner:
             if subnet.compartment_id!=compartment or subnet.prohibit_public_ip_on_vnic: raise StackError('Subnet must be public and in selected compartment')
             if getattr(subnet,'availability_domain',None):
                 raise StackError('Use a regional subnet; AD-specific subnets need an explicit reviewed launch plan')
-            # Never rewrite user-owned network/security lists.
+            # Never rewrite user-owned network/security lists. The plan/handoff reports
+            # that public 443 must be reviewed by the operator for this subnet.
+            self.state['https_ingress']=ingress_disposition(c); self.save()
             return self.network_ready('subnet',subnet).id
         def details(name,**kw): return model(self.oci,name,compartment_id=compartment,freeform_tags=self.tags,**kw)
         v=self.ensure_resource('vcn',self.network.list_vcns,self.network.create_vcn,
@@ -208,12 +240,17 @@ class Provisioner:
         rt=self.ensure_resource('route',self.network.list_route_tables,self.network.create_route_table,
           details('CreateRouteTableDetails',vcn_id=v.id,route_rules=[route],display_name='oracle-ai-route'),base)
         rt=self.network_ready('route',rt)
-        tcp=model(self.oci,'TcpOptions',destination_port_range=model(self.oci,'PortRange',min=22,max=22))
-        ingress=model(self.oci,'IngressSecurityRule',source=c['OCI_SSH_ALLOWED_CIDR'],source_type='CIDR_BLOCK',protocol='6',tcp_options=tcp,is_stateless=False)
+        ingress=desired_ingress_rules(c,self.oci)
         egress=model(self.oci,'EgressSecurityRule',destination='0.0.0.0/0',destination_type='CIDR_BLOCK',protocol='all',is_stateless=False)
         sl=self.ensure_resource('security',self.network.list_security_lists,self.network.create_security_list,
-          details('CreateSecurityListDetails',vcn_id=v.id,ingress_security_rules=[ingress],egress_security_rules=[egress],display_name='oracle-ai-private-services'),base)
+          details('CreateSecurityListDetails',vcn_id=v.id,ingress_security_rules=ingress,egress_security_rules=[egress],display_name='oracle-ai-private-services'),base)
         sl=self.network_ready('security',sl)
+        if {ingress_key(r) for r in getattr(sl,'ingress_security_rules',[])} != {ingress_key(r) for r in ingress}:
+            update=model(self.oci,'UpdateSecurityListDetails',ingress_security_rules=ingress,
+                         egress_security_rules=sl.egress_security_rules)
+            sl=self.network.update_security_list(sl.id,update).data
+            sl=self.network_ready('security',sl)
+        self.state['https_ingress']=ingress_disposition(c); self.save()
         sn=self.ensure_resource('subnet',self.network.list_subnets,self.network.create_subnet,
           details('CreateSubnetDetails',vcn_id=v.id,cidr_block='10.86.10.0/24',route_table_id=rt.id,
                   security_list_ids=[sl.id],prohibit_public_ip_on_vnic=False,dns_label='agents',display_name='oracle-ai-subnet'),base)
@@ -231,7 +268,7 @@ class Provisioner:
         if getattr(inst,'image_id',proposal['image'])!=proposal['image']: raise StackError('Managed instance image mismatch')
         # Subnet is validated on the VNIC after RUNNING.
     def launch(self,proposal,subnet,public):
-        signature=hashlib.sha256(json.dumps({**proposal,'subnet':subnet,'ssh_key':public},sort_keys=True).encode()).hexdigest()
+        signature=hashlib.sha256(json.dumps({**infrastructure_proposal(proposal),'subnet':subnet,'ssh_key':public},sort_keys=True).encode()).hexdigest()
         if self.state.get('request_signature') and self.state['request_signature']!=signature:
             raise StackError('Provisioning inputs changed; reconcile prior OCI resources before changing request')
         self.state['request_signature']=signature; self.save()
@@ -306,7 +343,7 @@ class Provisioner:
         proposal=self.preflight();public=self.prepare_ssh()
         # Freeze discovery before any cloud writes so a newly released image cannot
         # alter an in-flight/resumed request. Network inputs are protected too.
-        intent=hashlib.sha256(json.dumps({**proposal,'ssh_key':public},sort_keys=True).encode()).hexdigest()
+        intent=hashlib.sha256(json.dumps({**infrastructure_proposal(proposal),'ssh_key':public},sort_keys=True).encode()).hexdigest()
         if self.state.get('intent_sha256') and self.state['intent_sha256']!=intent:
             raise StackError('Provisioning inputs changed; review managed resources before new network writes')
         self.state['intent_sha256']=intent;self.state['image_id']=proposal['image'];self.save()
@@ -316,8 +353,10 @@ class Provisioner:
         fingerprint=self.state.get('host_fingerprint') or self.fingerprint(inst.id)
         self.state.update({'phase':'INSTANCE_READY','instance_id':inst.id,'public_ip':ip,'host_fingerprint':fingerprint})
         self.save()
-        handoff={'ORACLE_HOST':ip,'ORACLE_SSH_USER':'ubuntu','ORACLE_SSH_KEY':self.state['ssh_key_path'],
+        handoff={'ORACLE_HOST':ip,'PUBLIC_IP':ip,'ACCESS_MODE':self.cfg['ACCESS_MODE'],
+                 'ORACLE_SSH_USER':'ubuntu','ORACLE_SSH_KEY':self.state['ssh_key_path'],
                  'SSH_PORT':'22','OCI_INSTANCE_ID':inst.id,'SSH_FINGERPRINT':fingerprint,
+                 'OCI_HTTPS_INGRESS':self.state.get('https_ingress',ingress_disposition(self.cfg)),
                  'DOMAIN':self.cfg['DOMAIN'],'OCI_TENANCY':self.cfg['OCI_TENANCY'],'OCI_REGION':self.cfg['OCI_REGION']}
         atom_json(self.path.parent/'oci-handoff.json',handoff)
         return {'state':'INSTANCE_READY','handoff':str(self.path.parent/'oci-handoff.json'),'free_tier_guaranteed':False}

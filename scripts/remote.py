@@ -5,10 +5,11 @@ operator SSH/Cloudflare/Tailscale/backup credentials.
 """
 from __future__ import annotations
 import argparse, grp, hashlib, json, os, pathlib, pwd, re, secrets, shutil, subprocess, sys, time
-from stacklib import StackError, atom_json, domain_name, require, run, tailnet_ipv4, digest_tree
+from stacklib import StackError, access_mode, atom_json, domain_name, public_ipv4, require, run, tailnet_ipv4, digest_tree
 BASE=pathlib.Path('/opt/oracle-ai-stack')
 STATE=pathlib.Path('/var/lib/oracle-ai-stack')
 ETC=pathlib.Path('/etc/oracle-ai-stack')
+PUBLIC_FIREWALL=pathlib.Path('/etc/systemd/system/oracle-public-https.service')
 HOME=pathlib.Path('/home/openclaw')
 PREFIX=HOME/'.local/lib/openclaw-cli'
 BIN=PREFIX/'bin/openclaw'
@@ -69,15 +70,100 @@ def user_exists(name):
     except KeyError: return None
 
 
+def select_access_mode(cfg, previous, *, allow_implicit_public=False):
+    explicit=bool(cfg.get('_ACCESS_MODE_EXPLICIT', 'ACCESS_MODE' in cfg))
+    if explicit:
+        return access_mode(cfg)
+    if previous.get('access_mode') in ('public','tailscale'):
+        return previous['access_mode']
+    if previous.get('tailscale_ip'):
+        return 'tailscale'
+    if allow_implicit_public:
+        return access_mode(cfg)
+    raise StackError('Existing deployment has no network mode; set ACCESS_MODE explicitly before migration')
+
+
+def configure_network(cfg,stage,*,allow_implicit_public=False):
+    require(cfg,'DOMAIN','CLOUDFLARE_API_TOKEN')
+    domain=domain_name(cfg['DOMAIN'])
+    network_path=STATE/'network.json'
+    previous=json.loads(network_path.read_text()) if network_path.exists() else {}
+    managed_path=STATE/'managed.json'
+    managed=json.loads(managed_path.read_text()) if managed_path.exists() else {}
+    if not network_path.exists() and managed.get('state')=='BOOTSTRAPPING':
+        previous={'access_mode':managed.get('access_mode')}
+    mode=select_access_mode(cfg,previous,allow_implicit_public=allow_implicit_public)
+    conn=cfg.get('_SSH_CONNECTION','').split()
+    if len(conn)!=4: raise StackError('No SSH connection metadata; refusing a possibly locking firewall change')
+    import ipaddress
+    peer=str(ipaddress.ip_address(conn[0])); port=conn[3]
+    if not port.isdigit() or not 1 <= int(port) <= 65535: raise StackError('Invalid SSH connection port')
+    token=cfg.get('CLOUDFLARE_DNS01_TOKEN') or cfg['CLOUDFLARE_API_TOKEN']
+    if any(x in token for x in '\r\n'): raise StackError('Invalid certificate token')
+    public_ip=public_ipv4(cfg.get('PUBLIC_IP','')) if mode=='public' else None
+    run(['ufw','allow','from',peer,'to','any','port',port,'proto','tcp'])
+    if mode=='public':
+        ip=public_ip
+        run(['ufw','allow','443/tcp'])
+        bind='0.0.0.0'
+    else:
+        if PUBLIC_FIREWALL.exists():
+            run(['systemctl','disable','--now',PUBLIC_FIREWALL.name])
+        if previous.get('access_mode')=='public':
+            run(['ufw','--force','delete','allow','443/tcp'])
+        run(['ufw','allow','in','on','tailscale0','to','any','port','443','proto','tcp'])
+        run(['ufw','allow','in','on','tailscale0','to','any','port',port,'proto','tcp'])
+        if not shutil.which('tailscale'):
+            run(['bash',str(stage/'core/tailscale-install.sh')],timeout=900)
+        run(['systemctl','enable','--now','tailscaled'])
+        ts=run(['tailscale','status','--json'],check=False)
+        try: online=json.loads(ts.stdout).get('BackendState')=='Running'
+        except ValueError: online=False
+        if not online:
+            require(cfg,'TAILSCALE_AUTH_KEY')
+            key=ETC/'tailscale-auth.once'; write(key,cfg['TAILSCALE_AUTH_KEY'])
+            try: run(['tailscale','up','--auth-key=file:'+str(key),'--ssh=false','--accept-dns=false'],timeout=180)
+            finally: key.unlink(missing_ok=True)
+        ip=tailnet_ipv4(run(['tailscale','ip','-4']).stdout.decode().strip().splitlines()[0])
+        bind=ip
+    run(['ufw','default','deny','incoming'])
+    run(['ufw','--force','enable'])
+    if mode=='public':
+        # OCI images can have a terminal INPUT reject before every UFW chain.
+        # Own only this tagged 443 exception; do not flush or reorder other rules.
+        rule='-p tcp --dport 443 -m comment --comment oracle-ai-stack-https -j ACCEPT'
+        unit=('[Unit]\nDescription=OpenClaw public HTTPS ingress\n'
+              'After=netfilter-persistent.service ufw.service\n'
+              '[Service]\nType=oneshot\nRemainAfterExit=true\n'
+              'ExecStart=/usr/sbin/iptables -I INPUT 1 '+rule+'\n'
+              'ExecStop=/usr/sbin/iptables -D INPUT '+rule+'\n'
+              '[Install]\nWantedBy=multi-user.target\n')
+        write(PUBLIC_FIREWALL,unit,0o644)
+        run(['systemctl','daemon-reload'])
+        run(['systemctl','enable',PUBLIC_FIREWALL.name])
+        run(['systemctl','restart',PUBLIC_FIREWALL.name])
+    write(ETC/'proxy.env',f'DOMAIN={domain}\nPROXY_BIND={bind}\nCLOUDFLARE_API_TOKEN={token}\n')
+    network={'domain':domain,'access_mode':mode,'dns_ip':ip,'ssh_peer':peer,'ssh_port':port}
+    network['public_ip' if mode=='public' else 'tailscale_ip']=ip
+    atom_json(network_path,network)
+    if managed.get('state')=='BOOTSTRAPPING':
+        managed['state']='HOST_CONFIGURED'
+        atom_json(managed_path,managed)
+    return {'phase':'NETWORK_CONFIGURED','access_mode':mode,'dns_ip':ip,
+            'public_ip' if mode=='public' else 'tailscale_ip':ip}
+
+
 def init_host(cfg,stage):
     preflight(); require(cfg,'DOMAIN','CLOUDFLARE_API_TOKEN')
     domain=domain_name(cfg['DOMAIN'])
-    if not (STATE/'managed.json').exists():
+    new_install=not (STATE/'managed.json').exists()
+    if new_install:
         if user_exists('openclaw'):
             raise StackError('An unmanaged/old deployment exists; use the migration runbook, not zero-base overwrite')
         for d in (BASE,STATE,ETC): d.mkdir(parents=True,exist_ok=True)
         STATE.chmod(0o700); ETC.chmod(0o700)
-        atom_json(STATE/'managed.json',{'schema':3,'domain':domain,'state':'BOOTSTRAPPING'})
+        atom_json(STATE/'managed.json',{'schema':3,'domain':domain,'state':'BOOTSTRAPPING',
+                                     'access_mode':access_mode(cfg)})
     elif json.loads((STATE/'managed.json').read_text())['domain']!=domain:
         raise StackError('Deployment domain mismatch; explicit migration required')
     if json.loads((STATE/'managed.json').read_text()).get('schema')!=3:
@@ -98,34 +184,9 @@ def init_host(cfg,stage):
         u=pwd.getpwnam(name); pathlib.Path(u.pw_dir).chmod(0o700)
         groups={g.gr_name for g in grp.getgrall() if name in g.gr_mem or g.gr_gid==u.pw_gid}
         if groups & {'sudo','docker','root'}: raise StackError('Agent accounts may not be in sudo/docker/root groups')
-    # A custom SSH port and CURRENT peer are allowed before firewall activation.
-    conn=cfg.get('_SSH_CONNECTION','').split()
-    if len(conn)!=4: raise StackError('No SSH connection metadata; refusing a possibly locking firewall change')
-    import ipaddress
-    peer=str(ipaddress.ip_address(conn[0])); port=conn[3]
-    if not port.isdigit(): raise StackError('Invalid SSH connection port')
-    run(['ufw','allow','from',peer,'to','any','port',port,'proto','tcp'])
-    run(['ufw','allow','in','on','tailscale0','to','any','port','443','proto','tcp'])
-    run(['ufw','allow','in','on','tailscale0','to','any','port',port,'proto','tcp'])
-    run(['ufw','default','deny','incoming'])
-    run(['ufw','--force','enable'])
-    if not shutil.which('tailscale'):
-        run(['bash',str(stage/'core/tailscale-install.sh')],timeout=900)
-    run(['systemctl','enable','--now','tailscaled'])
-    ts=run(['tailscale','status','--json'],check=False)
-    try: online=json.loads(ts.stdout).get('BackendState')=='Running'
-    except ValueError: online=False
-    if not online:
-        require(cfg,'TAILSCALE_AUTH_KEY')
-        key=ETC/'tailscale-auth.once'; write(key,cfg['TAILSCALE_AUTH_KEY'])
-        try: run(['tailscale','up','--auth-key=file:'+str(key),'--ssh=false','--accept-dns=false'],timeout=180)
-        finally: key.unlink(missing_ok=True)
-    ip=tailnet_ipv4(run(['tailscale','ip','-4']).stdout.decode().strip().splitlines()[0])
-    token=cfg.get('CLOUDFLARE_DNS01_TOKEN') or cfg['CLOUDFLARE_API_TOKEN']
-    if any(x in token for x in '\r\n'): raise StackError('Invalid certificate token')
-    write(ETC/'proxy.env',f'DOMAIN={domain}\nTAILSCALE_IP={ip}\nCLOUDFLARE_API_TOKEN={token}\n')
-    atom_json(STATE/'network.json',{'domain':domain,'tailscale_ip':ip,'ssh_peer':peer,'ssh_port':port})
-    return {'phase':'HOST_CONFIGURED','tailscale_ip':ip}
+    result=configure_network(cfg,stage,allow_implicit_public=new_install)
+    result['phase']='HOST_CONFIGURED'
+    return result
 
 
 def keypair():
@@ -250,7 +311,10 @@ def proxy_install(cfg,lock):
     image='oracle-ai-caddy:'+hashlib.sha256(json.dumps(locked,sort_keys=True).encode()).hexdigest()[:20]
     if run(['docker','image','inspect',image],check=False).returncode:
         run(['docker','build','--platform','linux/arm64','--tag',image,str(builddir)],timeout=2400)
-    write(BASE/'Caddyfile','''{\n    admin off\n    auto_https disable_redirects\n}\nhttps://openclaw.{$DOMAIN} {\n    bind {$TAILSCALE_IP}\n    tls {\n        dns cloudflare {$CLOUDFLARE_API_TOKEN}\n    }\n    reverse_proxy 127.0.0.1:18789\n}\n''',0o644)
+    mode=net.get('access_mode') or ('tailscale' if net.get('tailscale_ip') else None)
+    if mode not in ('public','tailscale'):
+        raise StackError('Network mode is missing; run the explicit network configuration action')
+    write(BASE/'Caddyfile','''{\n    admin off\n    auto_https disable_redirects\n}\nhttps://openclaw.{$DOMAIN} {\n    bind {$PROXY_BIND}\n    tls {\n        dns cloudflare {$CLOUDFLARE_API_TOKEN}\n    }\n    reverse_proxy 127.0.0.1:18789\n}\n''',0o644)
     proxy={'name':'oracle-proxy','services':{'proxy':{'image':image,
            'network_mode':'host','env_file':[str(ETC/'proxy.env')],
            'volumes':[str(BASE/'Caddyfile')+':/etc/caddy/Caddyfile:ro','oracle-proxy-data:/data','oracle-proxy-config:/config'],
@@ -258,7 +322,8 @@ def proxy_install(cfg,lock):
            'volumes':{'oracle-proxy-data':{'name':'oracle-proxy-data'},'oracle-proxy-config':{'name':'oracle-proxy-config'}}}
     atom_json(BASE/'compose.proxy.json',proxy)
     run(['docker','compose','-f',str(BASE/'compose.proxy.json'),'up','-d','--no-build','--force-recreate'],timeout=2400)
-    return {'phase':'PRIVATE_PROXY_INSTALLED','tailscale_ip':net['tailscale_ip']}
+    return {'phase':'PUBLIC_PROXY_INSTALLED' if mode=='public' else 'TAILSCALE_PROXY_INSTALLED',
+            'access_mode':mode,'dns_ip':net.get('dns_ip') or net.get('public_ip') or net.get('tailscale_ip')}
 
 
 def extensions_install(stage):
@@ -307,11 +372,16 @@ def bind_buzz(cfg):
 
 
 def status(probe=False):
-    checks={}
-    for label,cmd in [('tailscale',['systemctl','is-active','tailscaled']),
-                      ('openclaw',['systemctl','is-active',UNIT]),
-                      ('docker',['systemctl','is-active','docker']),
-                      ('fetch_egress',['systemctl','is-active','oracle-fetch-egress.service'])]:
+    network_path=STATE/'network.json'
+    net=json.loads(network_path.read_text()) if network_path.exists() else {}
+    mode=net.get('access_mode') or ('tailscale' if net.get('tailscale_ip') else 'UNKNOWN')
+    checks={'network':'PASS' if mode in ('public','tailscale') else 'MISSING'}
+    commands=[('openclaw',['systemctl','is-active',UNIT]),
+              ('docker',['systemctl','is-active','docker']),
+              ('fetch_egress',['systemctl','is-active','oracle-fetch-egress.service'])]
+    if mode=='public': commands.append(('network_firewall',['systemctl','is-active',PUBLIC_FIREWALL.name]))
+    if mode=='tailscale': commands.insert(0,('tailscale',['systemctl','is-active','tailscaled']))
+    for label,cmd in commands:
         checks[label]='PASS' if run(cmd,check=False).returncode==0 else 'FAIL'
     proxy_file=BASE/'compose.proxy.json'
     if proxy_file.exists():
@@ -329,18 +399,22 @@ def status(probe=False):
     checks['worker_roundtrip']=delegation_receipt(STATE/'acceptance.json')
     if probe:
         checks['oauth']=checks['profiles'].get('operations',{}).get('auth','NOT_PROBED')
-    services_ready=all(checks[name]=='PASS' for name in ('tailscale','openclaw','docker','fetch_egress','proxy'))
+    required=['network','openclaw','docker','fetch_egress','proxy']
+    if mode=='public': required.append('network_firewall')
+    if mode=='tailscale': required.append('tailscale')
+    services_ready=all(checks[name]=='PASS' for name in required)
     profiles_ready=len(checks['profiles'])==len(PROFILES) and all(
         row.get('gateway')=='PASS' for row in checks['profiles'].values())
     installs_ready=checks['extension_smokes']!='MISSING' and checks['gbrain']!='MISSING'
     auth_ready=not probe or all(row.get('auth')=='PASS' for row in checks['profiles'].values())
-    return {'checks':checks,'overall':'SERVICES_RUNNING' if services_ready and profiles_ready and installs_ready and auth_ready else 'INCOMPLETE',
+    return {'checks':checks,'access_mode':mode,
+            'overall':'SERVICES_RUNNING' if services_ready and profiles_ready and installs_ready and auth_ready else 'INCOMPLETE',
             'client_verification':'NOT_TESTED'}
 
 
 def main():
     if os.geteuid()!=0: raise StackError('Server operator/root context required')
-    p=argparse.ArgumentParser(); p.add_argument('action',choices=['preflight','host','openclaw','proxy','extensions','status','models','profiles','gbrain','memory-smoke','acceptance'])
+    p=argparse.ArgumentParser(); p.add_argument('action',choices=['preflight','host','network','openclaw','proxy','extensions','status','models','profiles','gbrain','memory-smoke','acceptance'])
     p.add_argument('--stage',type=pathlib.Path,default=BASE/'stage')
     p.add_argument('--probe',action='store_true'); a=p.parse_args()
     cfg=json.load(sys.stdin) if not sys.stdin.isatty() else {}
@@ -348,6 +422,7 @@ def main():
     lock=json.loads((a.stage/'deployment.lock.json').read_text()) if (a.stage/'deployment.lock.json').exists() else {}
     if a.action=='preflight': result=preflight()
     elif a.action=='host': result=init_host(cfg,a.stage)
+    elif a.action=='network': result=configure_network(cfg,a.stage)
     elif a.action=='openclaw': result=openclaw_install(cfg,a.stage,lock)
     elif a.action=='proxy': result=proxy_install(cfg,lock)
     elif a.action=='extensions': result=extensions_install(a.stage)

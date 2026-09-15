@@ -27,7 +27,7 @@ execute this runbook; the helper is NOT an unattended upgrader.
 3. Update one component per step in a maintenance window. OpenClaw: use the official
    native installer/update flow for the chosen exact version, preserve config,
    verify CLI version/config validation and restart the known unit. Proxy changes
-   must preserve private binding and certificate data.
+   must preserve the explicitly selected network mode, authentication and certificate data.
 4. Do not delete the previous source, compose, `.env`, database/MinIO/Git snapshot or
    receipts. Image rollback does NOT undo database migrations; data rollback may
    require restoring the entire consistent snapshot.

@@ -10,6 +10,25 @@ class StackError(RuntimeError):
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
+ACCESS_MODES = ('public', 'tailscale')
+
+def access_mode(cfg: dict) -> str:
+    mode = cfg.get('ACCESS_MODE') or 'public'
+    if mode not in ACCESS_MODES:
+        raise StackError('ACCESS_MODE must be public or tailscale')
+    return mode
+
+def public_ipv4(value: str) -> str:
+    try: ip = ipaddress.ip_address(value)
+    except ValueError as exc: raise StackError('PUBLIC_IP must be a numeric public IPv4 address') from exc
+    if not isinstance(ip, ipaddress.IPv4Address) or not ip.is_global:
+        raise StackError('PUBLIC_IP must be a numeric public IPv4 address')
+    return str(ip)
+
+def access_ipv4(value: str, mode: str) -> str:
+    if mode not in ACCESS_MODES:
+        raise StackError('ACCESS_MODE must be public or tailscale')
+    return public_ipv4(value) if mode == 'public' else tailnet_ipv4(value)
 
 def repo_name(value: str) -> str:
     if not REPO_RE.fullmatch(value) or any(x in ('..', '.') for x in value.split('/')):
@@ -55,6 +74,10 @@ def load_env(path: str | pathlib.Path) -> dict[str, str]:
         out[key] = tokens[0] if tokens else ''
     if out.get('DOMAIN'):
         out['DOMAIN'] = domain_name(out['DOMAIN'])
+    out['_ACCESS_MODE_EXPLICIT'] = '1' if out.get('ACCESS_MODE') else ''
+    out['ACCESS_MODE'] = access_mode(out)
+    if out.get('PUBLIC_IP'):
+        out['PUBLIC_IP'] = public_ipv4(out['PUBLIC_IP'])
     out.setdefault('ORACLE_SSH_USER', 'ubuntu')
     out.setdefault('SSH_PORT', '22')
     if not re.fullmatch(r'[a-z_][a-z0-9_-]*', out['ORACLE_SSH_USER']):

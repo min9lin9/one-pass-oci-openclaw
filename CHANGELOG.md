@@ -1,3 +1,16 @@
+# Public access and agent-driven bootstrap — 2026-09-15
+
+Default to authenticated public HTTPS; make Tailscale explicit and optional.
+Add an agent-facing prerequisite/apply coordinator and a network-only action.
+Persist the initial bootstrap mode for interrupted-install recovery; missing
+network metadata on a completed host still fails closed.
+Preserve loopback gateways, owner/device auth, existing profiles and data.
+Add a scoped persistent HTTPS exception for OCI's pre-UFW reject rule.
+Record automatic, nonblocking Star verification for this repository.
+Handle the reviewed gstack alias as regular files and record Baoyu's actual
+README license evidence so fresh source preparation can complete.
+See `references/public-installation.md` for maturity and current live limits.
+
 # OpenClaw-only deployment — 2026-09-15
 
 Make OpenClaw Control UI the active interface. Remove Buzz from normal

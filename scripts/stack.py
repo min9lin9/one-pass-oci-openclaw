@@ -4,7 +4,7 @@ All server mutations are explicit actions. Secrets travel only via stdin over SS
 """
 from __future__ import annotations
 import argparse, hashlib, io, json, os, pathlib, re, shlex, shutil, subprocess, sys, tarfile, tempfile, urllib.parse, urllib.request
-from stacklib import StackError, atom_json, cf_request, digest_tree, domain_name, load_env, require, run, tailnet_ipv4
+from stacklib import StackError, access_ipv4, access_mode, atom_json, cf_request, digest_tree, domain_name, load_env, public_ipv4, require, run
 from extensions import stage as stage_extensions, snapshot, verify_stage, seal
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_HOME=pathlib.Path.home()/'.config/oracle-ai-stack'
@@ -30,14 +30,17 @@ def npm_version(name):
     return {'version':v,'integrity':meta.get('dist',{}).get('integrity','')}
 
 
-def prepare(where):
+def prepare(where, mode='public'):
+    mode=access_mode({'ACCESS_MODE':mode})
     stage_extensions(ROOT/'manifests/extensions.json',where)
     print('STAGING infrastructure sources (no installation scripts executed)',flush=True)
     cf=snapshot('caddy-dns/cloudflare','master',where/'core/caddy-dns-cloudflare')
     bootstrap={}
-    for name,url in [('openclaw-install-cli.sh','https://openclaw.ai/install-cli.sh'),
-                     ('tailscale-install.sh','https://tailscale.com/install.sh'),
-                     ('bun-install.sh','https://bun.sh/install')]:
+    downloads=[('openclaw-install-cli.sh','https://openclaw.ai/install-cli.sh'),
+               ('bun-install.sh','https://bun.sh/install')]
+    if mode=='tailscale':
+        downloads.append(('tailscale-install.sh','https://tailscale.com/install.sh'))
+    for name,url in downloads:
         bootstrap[name]={'url':url,'sha256':download(url,where/'core'/name)}
     aux={}
     for source in json.loads((ROOT/'manifests/bootstrap-sources.json').read_text())['sources']:
@@ -99,10 +102,12 @@ def ssh(cfg,command,data=None,timeout=3600,check=True):
 
 
 def remote(cfg,action,extra=None,probe=False):
-    payload={k:cfg[k] for k in ('DOMAIN','CLOUDFLARE_API_TOKEN','CLOUDFLARE_DNS01_TOKEN',
+    payload={k:cfg[k] for k in ('DOMAIN','ACCESS_MODE','PUBLIC_IP','CLOUDFLARE_API_TOKEN','CLOUDFLARE_DNS01_TOKEN',
              'TAILSCALE_AUTH_KEY','OPENCLAW_MODEL',
              'OPENCODE_API_KEY','OPENCODE_CATALOG','OPERATIONS_AUTH','PLANNING_AUTH','DEVELOPMENT_AUTH',
              'OPERATIONS_MODEL','PLANNING_MODEL','DEVELOPMENT_MODEL') if cfg.get(k)}
+    if '_ACCESS_MODE_EXPLICIT' in cfg:
+        payload['_ACCESS_MODE_EXPLICIT']=bool(cfg['_ACCESS_MODE_EXPLICIT'])
     payload.update(extra or {})
     # SSH_CONNECTION is explicitly preserved, not arbitrary agent/client environment.
     cmd='sudo -n --preserve-env=SSH_CONNECTION python3 /opt/oracle-ai-stack/scripts/remote.py '+action
@@ -140,8 +145,25 @@ def cloudflare_zone(cfg):
     return result[0]['id']
 
 
-def dns_plan(cfg,zone,ip):
-    ip=tailnet_ipv4(ip); actions=[]
+def public_ip_for(cfg):
+    value=cfg.get('PUBLIC_IP') or cfg.get('ORACLE_HOST')
+    if not value:
+        raise StackError('Public mode requires PUBLIC_IP or a numeric public ORACLE_HOST')
+    return public_ipv4(value)
+
+
+def with_public_ip(cfg):
+    cfg=dict(cfg)
+    if access_mode(cfg)=='public' and not cfg.get('PUBLIC_IP'):
+        try: cfg['PUBLIC_IP']=public_ip_for(cfg)
+        except StackError:
+            if cfg.get('_ACCESS_MODE_EXPLICIT'): raise
+    return cfg
+
+
+def dns_plan(cfg,zone,ip,mode=None):
+    mode=mode or access_mode(cfg)
+    ip=access_ipv4(ip,mode); actions=[]
     for sub in ('openclaw',):
         name=sub+'.'+cfg['DOMAIN']
         records=cf_request(cfg['CLOUDFLARE_API_TOKEN'],'GET',f'/zones/{zone}/dns_records?'+urllib.parse.urlencode({'name':name}))['result']
@@ -204,30 +226,55 @@ def tar_filter(info):
     return info
 
 
+def configure_dns(cfg,zone,host):
+    mode=host.get('access_mode') or ('tailscale' if host.get('tailscale_ip') else access_mode(cfg))
+    ip=host.get('dns_ip') or host.get('public_ip') or host.get('tailscale_ip')
+    ip=access_ipv4(ip,mode)
+    actions=dns_plan(cfg,zone,ip,mode)
+    for method,path,body in actions: cf_request(cfg['CLOUDFLARE_API_TOKEN'],method,path,body)
+    print('DNS_CONFIGURED_'+('PUBLIC' if mode=='public' else 'TAILSCALE')+'_IP',flush=True)
+    return mode,ip
+
+
 def setup(cfg,where,local_state):
     require(cfg,'DOMAIN','CLOUDFLARE_API_TOKEN')
     verify_all(where)
     zone=cloudflare_zone(cfg)  # BEFORE server mutation
     if not cfg.get('ORACLE_HOST'):
         cfg=provision_local(cfg,where,local_state)
+    cfg=with_public_ip(cfg)
     ssh(cfg,'sudo -n cloud-init status --wait',timeout=900)
     ssh(cfg,'sudo -n true')    # already authorized bootstrap SSH/sudo must work
     upload(cfg,where)
     print('CONFIGURING_HOST',flush=True)
-    host=remote(cfg,'host'); ip=tailnet_ipv4(host['tailscale_ip'])
-    actions=dns_plan(cfg,zone,ip)  # validate the private OpenClaw host before writes
-    for method,path,body in actions: cf_request(cfg['CLOUDFLARE_API_TOKEN'],method,path,body)
-    print('DNS_CONFIGURED_PRIVATE_IP',flush=True)
+    host=remote(cfg,'host'); configure_dns(cfg,zone,host)
     for phase in ('openclaw','proxy','extensions','gbrain'):
         print('CONFIGURING_'+phase.upper(),flush=True)
         receipt=remote(cfg,phase)
         atom_json(local_state/(phase+'.json'),receipt)
     result=remote(cfg,'status'); atom_json(local_state/'status.json',result)
-    star_prompt_repo()
-    print(json.dumps({'state':'INSTALLED_PENDING_ACCEPTANCE','report':str(local_state/'status.json'),
+    star='CONFIRMED' if star_repository() else 'PENDING'
+    report={'state':'INSTALLED_PENDING_ACCEPTANCE','report':str(local_state/'status.json'),'star':star,
       'next':['Confirm existing profile authentication with models --probe','gstack full host setup',
               'operations -> planning -> development task roundtrip','GBrain new-conversation recall',
-              'OpenClaw HTTPS client check','encrypted backup export and restore drill']},ensure_ascii=False,indent=2))
+              'OpenClaw HTTPS client check','encrypted backup export and restore drill']}
+    print(json.dumps(report,ensure_ascii=False,indent=2))
+    return report
+
+
+def reconfigure_network(cfg,where,local_state):
+    """Change only host firewall/access mode, managed DNS, and the Caddy proxy."""
+    require(cfg,'DOMAIN','CLOUDFLARE_API_TOKEN','ORACLE_HOST')
+    verify_all(where)
+    zone=cloudflare_zone(cfg)  # Validate DNS authority before server mutation.
+    cfg=with_public_ip(cfg)
+    upload(cfg,where)
+    host=remote(cfg,'network')
+    configure_dns(cfg,zone,host)
+    proxy=remote(cfg,'proxy'); atom_json(local_state/'proxy.json',proxy)
+    result=remote(cfg,'status'); atom_json(local_state/'status.json',result)
+    print(json.dumps({'state':'NETWORK_CONFIGURED_PENDING_CLIENT_VERIFICATION',
+      'access_mode':host['access_mode'],'report':str(local_state/'status.json')},indent=2))
 
 
 def hydrate_handoff(cfg,local_state):
@@ -240,6 +287,10 @@ def hydrate_handoff(cfg,local_state):
         if cfg.get(key) and cfg[key]!=saved.get(key):raise StackError('OCI handoff belongs to another deployment; use a separate --state directory')
     for key in ('ORACLE_HOST','ORACLE_SSH_USER','ORACLE_SSH_KEY','SSH_PORT'):
         if saved.get(key):merged[key]=saved[key]
+    if saved.get('ACCESS_MODE') and not cfg.get('_ACCESS_MODE_EXPLICIT'):
+        merged['ACCESS_MODE']=saved['ACCESS_MODE']
+    if saved.get('PUBLIC_IP') and not merged.get('PUBLIC_IP'):
+        merged['PUBLIC_IP']=saved['PUBLIC_IP']
     merged['SSH_KNOWN_HOSTS']=str(local_state/'known_hosts')
     if not (local_state/'known_hosts').exists():
         trust_host(merged,saved['SSH_FINGERPRINT'])
@@ -273,13 +324,17 @@ def provision_local(cfg,where,local_state,plan_only=False):
     return merged
 
 
-def star_prompt_repo():
-    if not shutil.which('gh') or run(['gh','auth','status'],check=False).returncode:
-        print('STAR_PENDING: local GitHub CLI authentication not available'); return False
-    repo='min9lin9/prompt-engineering-skills'
-    p=run(['gh','api','--method','PUT','/user/starred/'+repo],check=False)
-    verify=run(['gh','api','/user/starred/'+repo],check=False) if p.returncode==0 else p
-    print('STAR_CONFIRMED: '+repo if verify.returncode==0 else 'STAR_PENDING: authenticated user lacks required access')
+def star_repository():
+    """Best-effort star using an existing gh login; installation never depends on it."""
+    repo='min9lin9/one-pass-oci-openclaw'
+    try:
+        if not shutil.which('gh') or run(['gh','auth','status'],check=False).returncode:
+            print('STAR_PENDING: local GitHub CLI authentication not available'); return False
+        put=run(['gh','api','--method','PUT','/user/starred/'+repo],check=False)
+        verify=run(['gh','api','/user/starred/'+repo],check=False) if put.returncode==0 else put
+    except Exception:
+        print('STAR_PENDING: repository star could not be verified'); return False
+    print('STAR_CONFIRMED: '+repo if verify.returncode==0 else 'STAR_PENDING: repository star could not be verified')
     return verify.returncode==0
 
 
@@ -301,24 +356,28 @@ def lifecycle(cfg,action,snapshot_id=None,confirm=None):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('action',choices=['plan','prepare','seal','verify-sources','discover','trust-host','setup','status','repair','oauth',
+    p.add_argument('action',choices=['plan','prepare','seal','verify-sources','discover','trust-host','setup','network','status','repair','oauth',
                     'gstack-full','gbrain','memory-smoke','provision','oci-plan','models','profiles','acceptance','backup','restore','uninstall','update','star'])
     p.add_argument('--secrets',type=pathlib.Path,default=DEFAULT_HOME/'secrets.env')
     p.add_argument('--stage',type=pathlib.Path,default=DEFAULT_HOME/'stage')
     p.add_argument('--state',type=pathlib.Path,default=DEFAULT_HOME/'state')
     p.add_argument('--review-notes',type=pathlib.Path)
+    p.add_argument('--access-mode',choices=['public','tailscale'])
     p.add_argument('--fingerprint'); p.add_argument('--snapshot'); p.add_argument('--confirm')
     p.add_argument('--profile',choices=['operations','planning','development']); p.add_argument('--probe',action='store_true'); a=p.parse_args()
     if a.action=='plan':
         print(json.dumps({'extensions':json.loads((ROOT/'manifests/extensions.json').read_text()),'bootstrap':json.loads((ROOT/'manifests/bootstrap-sources.json').read_text())},indent=2)); return
-    if a.action=='prepare': prepare(a.stage); return
+    if a.action=='prepare': prepare(a.stage,a.access_mode or 'public'); return
     if a.action=='seal':
         if not a.review_notes: p.error('--review-notes required')
         seal_all(a.stage,a.review_notes); return
     if a.action=='verify-sources': verify_all(a.stage); print('ALL_SOURCE_HASHES_OK'); return
     if a.action=='discover': discover(a.state/'public-repositories.json'); return
-    if a.action=='star': star_prompt_repo(); return
+    if a.action=='star': star_repository(); return
     cfg=hydrate_handoff(load_env(a.secrets),a.state)
+    if a.access_mode:
+        cfg['ACCESS_MODE']=a.access_mode
+        cfg['_ACCESS_MODE_EXPLICIT']='1'
     if a.action in ('provision','oci-plan'):
         value=provision_local(cfg,a.stage,a.state,plan_only=a.action=='oci-plan')
         print(json.dumps(value if a.action=='oci-plan' else {'state':'INSTANCE_READY','handoff':str(a.state/'oci-handoff.json')},indent=2))
@@ -328,6 +387,8 @@ def main():
     elif a.action in ('setup','repair'):
         # Repair reuses exact reviewed versions; no update/reset/delete of user content.
         setup(cfg,a.stage,a.state)
+    elif a.action=='network':
+        reconfigure_network(cfg,a.stage,a.state)
     elif a.action=='status':
         value=remote(cfg,'status',probe=a.probe); atom_json(a.state/'status.json',value)
         print(json.dumps(value,indent=2));

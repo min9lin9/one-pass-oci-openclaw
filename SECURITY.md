@@ -4,6 +4,10 @@ This is a privileged deployment tool, not a security certification or a public
 multi-tenant hosting platform. Use a disposable OCI test deployment before real data.
 
 - The personal Codex operator owns OCI/SSH/DNS/Tailscale management. Agents do not.
+- Authenticated public HTTPS is the default; Tailscale is an explicit private
+  alternative. Public mode exposes TCP443 through Caddy, not native Gateway ports.
+  Preserve token/owner/device authentication, exact browser origins and narrow
+  loopback proxy trust. Do not enable anonymous or identity-header auth as a shortcut.
 - Operations, planning, and development use separate UIDs, profiles, workspaces,
   ports, and auth stores. This is not kernel/VM isolation between hostile tenants.
 - A process can access its own credentials/environment. Do not give a coding agent
@@ -21,6 +25,11 @@ multi-tenant hosting platform. Use a disposable OCI test deployment before real 
   do not survive VM/volume loss. Staged restore is not live disaster recovery.
 - GitHub publishing defaults to private and refuses an existing nonempty repository.
   Publication authorization does not authorize arbitrary cloud mutations.
+- This repository's owner explicitly selected public visibility. The publisher's
+  conservative defaults for other deployments do not change that recorded choice.
+- Actual installation attempts a Star on this repository with existing local gh
+  authentication. It neither authenticates GitHub nor blocks installation for Stars;
+  prerequisite-only checks perform no such external write.
 
 For a suspected vulnerability, do not place secret values, private keys, real
 customer prompts, or personal source data in an issue. Give a minimal synthetic

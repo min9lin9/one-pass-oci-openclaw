@@ -86,7 +86,7 @@ class OpenClawOnlyWorkflowTests(unittest.TestCase):
         package={'version':'1.2.3','integrity':'sha512-fixture'}
         with patch.object(stack,'stage_extensions'), \
              patch.object(stack,'snapshot',return_value='a'*40) as snapshot, \
-             patch.object(stack,'download',return_value='b'*64), \
+             patch.object(stack,'download',return_value='b'*64) as download, \
              patch.object(stack,'digest_tree',return_value='c'*64), \
              patch.object(stack,'get_json',return_value={'info':{'version':'1.2.3'}}), \
              patch.object(stack,'npm_version',return_value=package) as npm, \
@@ -95,10 +95,12 @@ class OpenClawOnlyWorkflowTests(unittest.TestCase):
         self.assertNotIn('block/buzz',[call.args[0] for call in snapshot.call_args_list])
         self.assertNotIn('@openclaw/buzz',[call.args[0] for call in npm.call_args_list])
         self.assertFalse(any(key.startswith('buzz_') for key in captured))
+        self.assertNotIn('https://tailscale.com/install.sh',
+                         [call.args[0] for call in download.call_args_list])
 
     def test_setup_runs_only_openclaw_components(self):
         cfg={'DOMAIN':'example.com','CLOUDFLARE_API_TOKEN':'test-secret-not-real',
-             'ORACLE_HOST':'192.0.2.1'}
+             'ORACLE_HOST':'192.0.2.1','ACCESS_MODE':'tailscale','_ACCESS_MODE_EXPLICIT':True}
         with tempfile.TemporaryDirectory() as td, \
              patch.object(stack,'verify_all'), \
              patch.object(stack,'cloudflare_zone',return_value='zone'), \
@@ -106,13 +108,14 @@ class OpenClawOnlyWorkflowTests(unittest.TestCase):
              patch.object(stack,'upload'), \
              patch.object(stack,'dns_plan',return_value=[]), \
              patch.object(stack,'atom_json'), \
-             patch.object(stack,'star_prompt_repo'), \
+             patch.object(stack,'star_repository',return_value=False), \
              patch.object(stack,'remote',side_effect=lambda _cfg,action,*args,**kwargs:
                           {'tailscale_ip':'100.64.1.1'} if action=='host' else
                           ({'overall':'READY'} if action=='status' else {'phase':action})) as remote:
-            stack.setup(cfg,pathlib.Path(td)/'stage',pathlib.Path(td)/'state')
+            result=stack.setup(cfg,pathlib.Path(td)/'stage',pathlib.Path(td)/'state')
         actions=[call.args[1] for call in remote.call_args_list]
         self.assertEqual(actions,['host','openclaw','proxy','extensions','gbrain','status'])
+        self.assertEqual(result['star'],'PENDING')
 
     def test_proxy_routes_only_openclaw(self):
         with tempfile.TemporaryDirectory() as td:
@@ -134,7 +137,7 @@ class OpenClawOnlyWorkflowTests(unittest.TestCase):
             self.assertIn('--force-recreate',compose)
             self.assertIn('https://openclaw.{$DOMAIN}',caddy)
             self.assertNotIn('buzz.',caddy.lower())
-            self.assertIn('bind {$TAILSCALE_IP}',caddy)
+            self.assertIn('bind {$PROXY_BIND}',caddy)
 
     def test_status_reports_services_without_claiming_client_verification(self):
         with tempfile.TemporaryDirectory() as td:
@@ -143,6 +146,7 @@ class OpenClawOnlyWorkflowTests(unittest.TestCase):
             (base/'compose.proxy.json').write_text('{}')
             (home/'.local/state/oracle-ai-stack/runtime-checks.json').write_text('{}')
             (state/'gbrain-install.json').write_text('{}')
+            (state/'network.json').write_text('{"tailscale_ip":"100.64.1.1"}')
             profiles={name:{'gateway':'PASS','auth':'NOT_PROBED'} for name in ('operations','planning','development')}
             def command(args,**kwargs):
                 stdout=b'proxy\n' if args[:4]==['docker','compose','-f',str(base/'compose.proxy.json')] else b''
@@ -158,7 +162,7 @@ class OpenClawOnlyWorkflowTests(unittest.TestCase):
 
 
 class NetworkTests(unittest.TestCase):
-    cfg={'DOMAIN':'example.com','CLOUDFLARE_API_TOKEN':'test-secret-not-real'}
+    cfg={'DOMAIN':'example.com','CLOUDFLARE_API_TOKEN':'test-secret-not-real','ACCESS_MODE':'tailscale'}
     def test_dns_no_public_proxy(self):
         with patch('stack.cf_request',return_value={'result':[]}):
             actions=stack.dns_plan(self.cfg,'zone','100.64.1.1')
@@ -203,7 +207,7 @@ class PackagePolicyTests(unittest.TestCase):
         self.assertTrue({'gstack','insane-search','prompt-engineering'}<=required)
     def test_only_authorized_star(self):
         m=json.loads((ROOT/'manifests/extensions.json').read_text())
-        self.assertEqual(m['star_repositories'],['min9lin9/prompt-engineering-skills'])
+        self.assertEqual(m['star_repositories'],['min9lin9/one-pass-oci-openclaw'])
     def test_adapters_valid(self):
         for p in (ROOT/'adapters').glob('*/SKILL.md'): extensions.parse_name(p)
     def test_no_privilege_shortcuts(self):

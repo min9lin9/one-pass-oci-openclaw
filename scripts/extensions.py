@@ -11,13 +11,25 @@ from stacklib import StackError, atom_json, digest_tree, repo_name, run, SHA_RE,
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
-def safe_extract(blob: bytes, dest: pathlib.Path) -> None:
+def safe_extract(blob: bytes, dest: pathlib.Path, materialized_links: dict[str, str] | None = None) -> None:
     dest.mkdir(parents=True, exist_ok=True)
+    allowed_links = materialized_links or {}
+    pending_links = {}
     count = size = 0
     with tarfile.open(fileobj=io.BytesIO(blob), mode='r:*') as tf:
         for m in tf:
             p = pathlib.PurePosixPath(m.name)
-            if p.is_absolute() or '..' in p.parts or m.issym() or m.islnk() or not (m.isfile() or m.isdir()):
+            if p.is_absolute() or '..' in p.parts:
+                raise StackError('Source archive has unsafe paths, links, or special files')
+            if m.issym():
+                expected = allowed_links.get(m.name)
+                link = pathlib.PurePosixPath(m.linkname)
+                if (expected is None or m.linkname != expected or link.is_absolute() or
+                        '..' in link.parts or '\\' in m.linkname or '\x00' in m.linkname):
+                    raise StackError('Source archive has unsafe paths, links, or special files')
+                pending_links[m.name] = p.parent.joinpath(link)
+                continue
+            if m.islnk() or not (m.isfile() or m.isdir()):
                 raise StackError('Source archive has unsafe paths, links, or special files')
             if '.git' in p.parts: continue
             count += 1; size += m.size
@@ -31,9 +43,32 @@ def safe_extract(blob: bytes, dest: pathlib.Path) -> None:
                 if stream is None: raise StackError('Unreadable archive member')
                 target.write_bytes(stream.read())
                 target.chmod(0o755 if m.mode & 0o111 else 0o644)
+    if set(pending_links) != set(allowed_links):
+        raise StackError('Reviewed source link is missing; upstream layout changed')
+    for alias_name, source_path in pending_links.items():
+        alias = dest.joinpath(*pathlib.PurePosixPath(alias_name).parts)
+        source = dest.joinpath(*source_path.parts)
+        if alias.exists() or alias.is_symlink() or source.is_symlink() or not source.exists():
+            raise StackError('Reviewed source link target changed or is unavailable')
+        copied = [source] if source.is_file() else [source, *source.rglob('*')]
+        if any(p.is_symlink() or not (p.is_file() or p.is_dir()) for p in copied):
+            raise StackError('Reviewed source link target is unsafe')
+        extra_size = sum(p.stat().st_size for p in copied if p.is_file())
+        if (count + len(copied) > 40000 or size + extra_size > 512 * 1024 * 1024 or
+                any(p.is_file() and p.stat().st_size > 64 * 1024 * 1024 for p in copied)):
+            raise StackError('Source exceeds bounded staging budget; use a reviewed subset')
+        count += len(copied)
+        size += extra_size
+        alias.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_dir():
+            shutil.copytree(source, alias)
+        else:
+            shutil.copyfile(source, alias)
+            alias.chmod(stat.S_IMODE(source.stat().st_mode))
 
 
-def snapshot(repo: str, ref: str, dest: pathlib.Path) -> str:
+def snapshot(repo: str, ref: str, dest: pathlib.Path,
+             materialized_links: dict[str, str] | None = None) -> str:
     repo_name(repo)
     if not re.fullmatch(r'[A-Za-z0-9_./-]+', ref) or ref.startswith('-'):
         raise StackError('Invalid source ref')
@@ -48,7 +83,7 @@ def snapshot(repo: str, ref: str, dest: pathlib.Path) -> str:
         sha = run(['git','-C',str(td),'rev-parse','FETCH_HEAD^{commit}'], env=env).stdout.decode().strip()
         if not SHA_RE.fullmatch(sha): raise StackError('Not a commit SHA')
         blob = run(['git','-C',str(td),'archive','--format=tar',sha], env=env,max_output=512*1024*1024).stdout
-        safe_extract(blob, dest)
+        safe_extract(blob, dest, materialized_links)
     return sha
 
 
@@ -85,7 +120,12 @@ def validate_catalog_item(item: dict) -> None:
     if not NAME_RE.fullmatch(item.get('id','')): raise StackError('Invalid catalog source ID')
     repo_name(item['repo'])
     for value in item.get('skills',[]): source_subpath(value)
+    for value in item.get('license_evidence',[]): source_subpath(value)
     if item.get('source_path'): source_subpath(item['source_path'])
+    links=item.get('materialized_links',{})
+    if not isinstance(links,dict): raise StackError('Invalid materialized source links')
+    for alias,target in links.items():
+        source_subpath(alias); source_subpath(target)
     if item.get('adapter') and not NAME_RE.fullmatch(item['adapter']):
         raise StackError('Invalid adapter name')
 
@@ -100,13 +140,18 @@ def stage(manifest: pathlib.Path, target: pathlib.Path) -> None:
         validate_catalog_item(item)
         print('STAGING ' + item['id'], flush=True)
         source = target/'sources'/item['id']
-        sha = snapshot(item['repo'], item['ref'], source)
+        sha = snapshot(item['repo'], item['ref'], source, item.get('materialized_links'))
         for sub in item.get('skills',[]):
             if not (source/sub/'SKILL.md').is_file():
                 raise StackError(f"{item['id']}: expected SKILL.md missing; upstream layout changed")
         expected = item.get('source_path')
         if expected and not (source/expected).exists(): raise StackError('Source layout changed')
         licenses = [p.relative_to(source).as_posix() for p in source.glob('LICENSE*') if p.is_file()]
+        for rel in item.get('license_evidence',[]):
+            if not (source/rel).is_file():
+                raise StackError(item['id'] + ': declared license evidence missing; upstream layout changed')
+            licenses.append(rel)
+        licenses=sorted(set(licenses))
         if not licenses: raise StackError(item['id'] + ': license missing; review separately')
         records.append(dict(item, commit=sha, tree_sha256=digest_tree(source), licenses=licenses,
                             signals=inventory(source)))

@@ -8,9 +8,10 @@ screenshots, logs or test IDs. Assertions below require real execution on the ta
 |---|---|
 | Host | Ubuntu 24.04/aarch64, expected memory/disk, SSH host fingerprint verified |
 | Identity | OpenClaw has no root/sudo/docker group; operator credentials remain outside agent access |
-| Network | Current Tailnet IPv4, DNS-only A records, no conflicting public AAAA/CNAME |
-| Listeners | `ss`/Docker bindings confirm 443 Tailnet-only; 18789/19789/20789 loopback; no Buzz listener or public 80 redirect listener |
-| TLS | FROM the user's Tailnet client: valid hostname/certificate chain for openclaw.<domain>; invalid/untrusted client access does not succeed |
+| Network | Selected mode and matching public/Tailnet IPv4; DNS-only A record; no conflicting AAAA/CNAME |
+| Listeners | Public mode:443 externally reachable; Tailscale mode:443 Tailnet-only; 18789/19789/20789 loopback; no Buzz or public 80 redirect listener |
+| TLS | Valid hostname/certificate chain through the selected route; public mode must actually use the public IP rather than a Tailnet route |
+| Authentication | Static UI/health200 is not authenticated access; an unpaired/unauthorized client cannot run agent actions |
 | OpenClaw | Three native profiles active, unique UIDs/state/ports; actual responses under each selected auth/model |
 | Delegation | Operations submits unique task UUID to planning and development; actual model-backed result recorded |
 | GBrain | Operations-only store; CLI remember/recall, then separate new-chat recall/correction/withdrawal verification |

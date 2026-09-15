@@ -1,5 +1,9 @@
 # OpenClaw-only transition — 2026-09-15
 
+Historical Buzz-retirement record. The subsequent public-access default and
+current live result are in `public-installation.md`; do not treat the old
+Tailnet-only access instructions below as the current default.
+
 The owner requested retiring Buzz, applying the change on WineyCellar and
 reflecting it in the existing GitHub repository. This record supersedes the
 older Buzz deployment instructions, not the historical test results.
