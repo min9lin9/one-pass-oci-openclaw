@@ -5,7 +5,10 @@ It contains a local Codex deployment skill, not a deployed Oracle instance.
 
 Read SKILL.md for deployment, REVIEW.md for known findings, and SECURITY.md before
 changing privileges or inputs. Preserve operations/planning/development isolation,
-Buzz, Tailscale-only access, and explicit ChatGPT/OpenCode authentication choices.
+Tailscale-only OpenClaw access, and explicit ChatGPT/OpenCode authentication choices.
+The current design is OpenClaw-only. Do not install, enable, require, or restart
+Buzz through normal deployment or repair. Preserve retired Buzz data unless the
+operator explicitly authorizes deletion.
 
 Run `python3 scripts/check.py` after edits. Tests are offline unless individually
 and explicitly authorized. Never run OCI creation, OAuth, network installs, source

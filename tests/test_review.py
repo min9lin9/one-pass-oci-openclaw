@@ -196,9 +196,42 @@ class DistributionTests(unittest.TestCase):
         self.assertNotIn('shutil.copytree(src,dest)',source)
 
 class BackupRecoveryTests(unittest.TestCase):
+    def test_backup_volume_inventory_requires_only_proxy_volumes(self):
+        with tempfile.TemporaryDirectory() as td:
+            base=pathlib.Path(td)
+            (base/'compose.proxy.json').write_text(json.dumps({'volumes':{
+                'data':{'name':'oracle-proxy-data'},'config':{'name':'oracle-proxy-config'}}}))
+            def inspect(args,**kwargs):
+                name=args[-1]
+                row=[{'Mountpoint':'/var/lib/docker/volumes/'+name+'/_data'}]
+                return NS(returncode=0,stdout=json.dumps(row).encode())
+            with patch.object(operations,'BASE',base),patch.object(operations,'run',side_effect=inspect):
+                mounts=operations.own_volumes()
+            self.assertEqual(set(mounts),{'oracle-proxy-data','oracle-proxy-config'})
+
+    def test_container_inventory_is_limited_to_proxy_project(self):
+        with patch.object(operations,'run',return_value=NS(returncode=0,stdout=b'abcdef123456\n')) as run:
+            self.assertEqual(operations.running_containers(),['abcdef123456'])
+        run.assert_called_once_with(['docker','ps','-q','--filter','label=com.docker.compose.project=oracle-proxy'])
+
+    def test_uninstall_stops_only_owned_openclaw_and_proxy_services(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=pathlib.Path(td);state=root/'state';base=root/'base';state.mkdir();base.mkdir()
+            (state/'managed.json').write_text('{"domain":"example.com"}')
+            (base/'compose.proxy.json').write_text('{}')
+            calls=[]
+            def command(args,**kwargs):
+                calls.append(args)
+                return NS(returncode=0,stdout=b'')
+            with patch.object(operations,'STATE',state),patch.object(operations,'BASE',base), \
+                 patch.object(operations,'run',side_effect=command):
+                operations.uninstall('uninstall:example.com')
+            docker=[args for args in calls if args and args[0]=='docker']
+            self.assertEqual(docker,[['docker','compose','-f',str(base/'compose.proxy.json'),'down']])
+
     def test_resume_failure_returns_error_even_after_snapshot_success(self):
         with tempfile.TemporaryDirectory() as td:
-            state=pathlib.Path(td);(state/'managed.json').write_text('{"domain":"example.com"}')
+            state=pathlib.Path(td).resolve();(state/'managed.json').write_text('{"domain":"example.com"}')
             def command(args,**kwargs):
                 if args[:2]==['docker','start']:return NS(returncode=1,stdout=b'')
                 return NS(returncode=0,stdout=b'')

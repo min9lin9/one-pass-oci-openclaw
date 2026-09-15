@@ -35,10 +35,15 @@ The operator must then:
    `approve-all`/permission bypass to hide a mismatch.
 4. If using ACP, grant only the intended Codex target, keep concurrent coding jobs
    at one initially and test a one-shot session with a disposable project. Read-only
-   planning must not mutate a live repository. Buzz may lack the same binding support
-   as other chat channels; verify actual delivery rather than assuming thread parity.
+   planning must not mutate a live repository. Verify the actual OpenClaw delivery
+   path rather than assuming another client's session binding works.
 5. Mark FULL_GSTACK_READY only when the target harness discovers the skill, runs it
-   and returns an actual result through the intended OpenClaw/Buzz workflow.
+   and returns an actual result through the intended OpenClaw workflow.
+
+An already verified direct Codex CLI invocation through OpenClaw exec is a
+distinct supported deployment choice. Record it as CLI dispatch, not native
+Codex-plugin or ACP integration. Do not add another integration layer solely
+to rename that working path.
 
 A no-route/no-auth state is PENDING_HARNESS, not "gstack failed" and not READY.
 Do not substitute Kimaki/Discord or Claude account requirements to make it pass.

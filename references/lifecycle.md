@@ -11,7 +11,7 @@ when the existing Tailnet session is already running.
 v0.1 used /home/ubuntu and /opt/buzz, potentially sudo/docker access, a different
 Compose project, and incomplete backups. v0.3 stops on old or unmanaged deployments. v0.2 used one OpenClaw identity; its state must not be copied into all three profiles.
 Inventory actual project volume names and OAuth state, take a coherent backup of
-ALL Buzz stores, confirm current networking, then migrate into the new dedicated
+the existing application stores, confirm current networking, then migrate into the new dedicated
 user/versioned paths. Never run a "fresh install" over existing data. Reauthenticate
 where supported rather than blindly moving another application's credential files.
 
@@ -26,25 +26,28 @@ execute this runbook; the helper is NOT an unattended upgrader.
    verify restore-to-staging BEFORE a risky schema change.
 3. Update one component per step in a maintenance window. OpenClaw: use the official
    native installer/update flow for the chosen exact version, preserve config,
-   verify CLI version/config validation and restart the known unit. Buzz: stage the
-   new immutable source beside the previous source; render new private compose;
-   pull/record digests; inspect migrations; switch only when rollback is prepared.
+   verify CLI version/config validation and restart the known unit. Proxy changes
+   must preserve private binding and certificate data.
 4. Do not delete the previous source, compose, `.env`, database/MinIO/Git snapshot or
    receipts. Image rollback does NOT undo database migrations; data rollback may
    require restoring the entire consistent snapshot.
-5. Re-run TLS, auth, roles, actual Buzz roundtrip and extension smokes. Only then
+5. Re-run TLS, auth, roles, actual OpenClaw UI response and extension smokes. Only then
    mark the change complete; otherwise preserve failure evidence and recover.
 
 ## Encrypted backup
 `stack.py backup` refuses active delegated tasks, pauses both worker socket listeners,
 locks worker execution, stops all three managed Gateway services and running
-Buzz/proxy containers, snapshots state with restic, and resumes the original
+proxy containers, snapshots state with restic, and resumes the original
 running set in finally. Manually started writers outside these managed services
-must also be stopped by the operator. It includes PostgreSQL, Redis, MinIO, Git and proxy volumes,
+must also be stopped by the operator. It includes proxy volumes.
 All three profile homes (including independent auth stores and the operations
 GBrain PGLite database), identities, config, source/runtime files, units and sockets
 are included. A Git clone is not a GBrain database backup.
 Do not claim a hot pg_dump alone preserves object/Git consistency.
+
+The active backup scope no longer requires or includes retired Buzz database,
+object or Git volumes. Keep the previous encrypted Buzz-inclusive snapshot and
+retained volumes separately; stopping Buzz is not authorization to delete them.
 
 Repository: /var/backups/oracle-ai-stack/restic
 Password: /etc/oracle-ai-stack/restic-password (root, 0600)

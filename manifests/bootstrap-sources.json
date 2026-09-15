@@ -6,7 +6,7 @@
     {"id":"ecc","repo":"affaan-m/ECC","ref":"main","usage":"Read-only planner/architect methodology and development TDD/review methodology; no host plugin, hooks, or Anthropic defaults imported."}
   ],
   "roles": {
-    "operations": {"exclusive":["gbrain","gstack"],"entry_channel":"buzz"},
+    "operations": {"exclusive":["gbrain","gstack"],"entry_channel":"openclaw-https"},
     "planning": {"ecc_files":["agents/planner.md","agents/architect.md"],"code_mutation":false},
     "development": {"ecc_files":["agents/tdd-guide.md","agents/code-reviewer.md"],"production_access":false}
   }

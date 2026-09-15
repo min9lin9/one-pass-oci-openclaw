@@ -1,6 +1,6 @@
 """Fail-closed interpretation of observed OpenClaw JSON, not arbitrary text search.
 Unknown schemas stay unverified. A model marker is not evidence of file safety,
-Buzz delivery, persistent memory, or successful implementation of a real task.
+HTTPS delivery, persistent memory, or successful implementation of a real task.
 """
 from __future__ import annotations
 import json

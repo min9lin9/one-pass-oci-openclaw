@@ -96,7 +96,9 @@ def config_for(p: Profile, cfg: dict, token: str) -> dict:
 
 def environment(p: Profile) -> dict[str,str]:
     return {'HOME':str(p.home),'USER':p.user,'LANG':'C.UTF-8',
-        'PATH':str(p.prefix/'tools/node/bin')+':'+str(p.prefix/'bin')+':/usr/local/bin:/usr/bin:/bin',
+        'PATH':str(p.prefix/'tools/node/bin')+':'+str(p.prefix/'bin')+
+            (':'+str(p.home/'.local/share/oracle-ai-stack/bun/bin') if p.name=='operations' else '')+
+            ':/usr/local/bin:/usr/bin:/bin',
         'OPENCLAW_STATE_DIR':str(p.state),'OPENCLAW_CONFIG_PATH':str(p.state/'openclaw.json'),
         'CODEX_HOME':str(p.home/'.codex'), 'DO_NOT_TRACK':'1'}
 

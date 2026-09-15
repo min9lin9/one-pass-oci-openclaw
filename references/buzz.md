@@ -1,4 +1,10 @@
-# Buzz bootstrap: relay is not yet a usable agent room
+# Retired Buzz deployment reference
+
+The current user-approved design is OpenClaw-only. This document describes the
+former setup for historical recovery context, not an active installation workflow.
+Do not run its bootstrap or binding steps as part of current setup/repair.
+Existing Buzz volumes, protected keys and earlier encrypted backups are retained;
+their deletion or reactivation requires a separate explicit request.
 
 Official sources: block/buzz deploy/compose; docs.openclaw.ai/channels/buzz.
 The production backend is the relay with Postgres, Redis, MinIO and Git data. A

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Root-side infrastructure worker. Receives secrets over SSH stdin, never argv.
 Only execute a reviewed package as the server operator. OpenClaw never receives
-operator SSH/Cloudflare/Tailscale/backup credentials or the human Buzz owner key.
+operator SSH/Cloudflare/Tailscale/backup credentials.
 """
 from __future__ import annotations
 import argparse, grp, hashlib, json, os, pathlib, pwd, re, secrets, shutil, subprocess, sys, time
@@ -36,7 +36,9 @@ def chown_tree(path,user):
 
 def user_run(user,args,*,env=None,cwd=None,timeout=1200,check=True):
     home=pwd.getpwnam(user).pw_dir
-    path=str(PREFIX/'tools/node/bin')+':'+str(PREFIX/'bin')+':/usr/local/bin:/usr/bin:/bin'
+    path=str(PREFIX/'tools/node/bin')+':'+str(PREFIX/'bin')
+    if user=='openclaw': path+=':'+str(pathlib.Path(home)/'.local/share/oracle-ai-stack/bun/bin')
+    path+=':/usr/local/bin:/usr/bin:/bin'
     cmd=['runuser','-u',user,'--','env','-i','HOME='+home,'USER='+user,'LANG=C.UTF-8','PATH='+path]
     cmd += [k+'='+v for k,v in (env or {}).items()]
     return run(cmd+list(map(str,args)),cwd=cwd,timeout=timeout,check=check)
@@ -71,7 +73,7 @@ def init_host(cfg,stage):
     preflight(); require(cfg,'DOMAIN','CLOUDFLARE_API_TOKEN')
     domain=domain_name(cfg['DOMAIN'])
     if not (STATE/'managed.json').exists():
-        if user_exists('openclaw') or pathlib.Path('/opt/buzz').exists():
+        if user_exists('openclaw'):
             raise StackError('An unmanaged/old deployment exists; use the migration runbook, not zero-base overwrite')
         for d in (BASE,STATE,ETC): d.mkdir(parents=True,exist_ok=True)
         STATE.chmod(0o700); ETC.chmod(0o700)
@@ -248,14 +250,14 @@ def proxy_install(cfg,lock):
     image='oracle-ai-caddy:'+hashlib.sha256(json.dumps(locked,sort_keys=True).encode()).hexdigest()[:20]
     if run(['docker','image','inspect',image],check=False).returncode:
         run(['docker','build','--platform','linux/arm64','--tag',image,str(builddir)],timeout=2400)
-    write(BASE/'Caddyfile','''{\n    admin off\n    auto_https disable_redirects\n}\nhttps://buzz.{$DOMAIN} {\n    bind {$TAILSCALE_IP}\n    tls {\n        dns cloudflare {$CLOUDFLARE_API_TOKEN}\n    }\n    reverse_proxy 127.0.0.1:3000\n}\nhttps://openclaw.{$DOMAIN} {\n    bind {$TAILSCALE_IP}\n    tls {\n        dns cloudflare {$CLOUDFLARE_API_TOKEN}\n    }\n    reverse_proxy 127.0.0.1:18789\n}\n''',0o644)
+    write(BASE/'Caddyfile','''{\n    admin off\n    auto_https disable_redirects\n}\nhttps://openclaw.{$DOMAIN} {\n    bind {$TAILSCALE_IP}\n    tls {\n        dns cloudflare {$CLOUDFLARE_API_TOKEN}\n    }\n    reverse_proxy 127.0.0.1:18789\n}\n''',0o644)
     proxy={'name':'oracle-proxy','services':{'proxy':{'image':image,
            'network_mode':'host','env_file':[str(ETC/'proxy.env')],
            'volumes':[str(BASE/'Caddyfile')+':/etc/caddy/Caddyfile:ro','oracle-proxy-data:/data','oracle-proxy-config:/config'],
            'restart':'unless-stopped','logging':{'driver':'json-file','options':{'max-size':'10m','max-file':'3'}}}},
            'volumes':{'oracle-proxy-data':{'name':'oracle-proxy-data'},'oracle-proxy-config':{'name':'oracle-proxy-config'}}}
     atom_json(BASE/'compose.proxy.json',proxy)
-    run(['docker','compose','-f',str(BASE/'compose.proxy.json'),'up','-d','--no-build'],timeout=2400)
+    run(['docker','compose','-f',str(BASE/'compose.proxy.json'),'up','-d','--no-build','--force-recreate'],timeout=2400)
     return {'phase':'PRIVATE_PROXY_INSTALLED','tailscale_ip':net['tailscale_ip']}
 
 
@@ -311,22 +313,13 @@ def status(probe=False):
                       ('docker',['systemctl','is-active','docker']),
                       ('fetch_egress',['systemctl','is-active','oracle-fetch-egress.service'])]:
         checks[label]='PASS' if run(cmd,check=False).returncode==0 else 'FAIL'
-    if COMPOSE.exists():
-        checks['buzz_containers']='PASS' if docker_compose('ps','--format','json',check=False).returncode==0 else 'FAIL'
-        p=docker_compose('ps','--format','json',check=False)
-        # Compose versions return either JSON array or JSON lines.
-        try:
-            text=p.stdout.decode().strip()
-            rows=json.loads(text) if text.startswith('[') else [json.loads(l) for l in text.splitlines()]
-            byname={x.get('Service'):x for x in rows}
-            checks['buzz_containers']='PASS' if all(byname.get(n,{}).get('State')=='running' and
-                byname[n].get('Health') in ('healthy','') for n in ('relay','postgres','redis','minio')) else 'FAIL'
-        except (ValueError,KeyError): checks['buzz_containers']='FAIL'
-    else: checks['buzz_containers']='MISSING'
-    c=OP.state/'openclaw.json'
-    config=json.loads(c.read_text()) if c.exists() else {}
-    checks['buzz_room']='CONFIGURED_NOT_VERIFIED' if config.get('channels',{}).get('buzz',{}).get('groups') else 'WAITING_OWNER_ROOM'
-    checks['oauth']='NOT_PROBED'; checks['buzz_roundtrip']='NOT_TESTED'
+    proxy_file=BASE/'compose.proxy.json'
+    if proxy_file.exists():
+        result=run(['docker','compose','-f',str(proxy_file),'ps','--status','running','--services'],check=False)
+        checks['proxy']='PASS' if result.returncode==0 and set(result.stdout.decode().split())=={'proxy'} else 'FAIL'
+    else:
+        checks['proxy']='MISSING'
+    checks['oauth']='NOT_PROBED'
     r=HOME/'.local/state/oracle-ai-stack/runtime-checks.json'
     checks['extension_smokes']='RECORDED_NOT_REVALIDATED' if r.exists() else 'MISSING'
     from profiles_runtime import profile_status
@@ -334,16 +327,20 @@ def status(probe=False):
     checks['gbrain']='INSTALLED_NOT_CHAT_VERIFIED' if (STATE/'gbrain-install.json').exists() else 'MISSING'
     from evidence import delegation_receipt
     checks['worker_roundtrip']=delegation_receipt(STATE/'acceptance.json')
-    if probe and BIN.exists():
+    if probe:
         checks['oauth']=checks['profiles'].get('operations',{}).get('auth','NOT_PROBED')
-        checks['buzz_channel_probe']='COMMAND_COMPLETED_NOT_ROOM_E2E' if oc('channels','status','--channel','buzz','--probe',check=False).returncode==0 else 'FAIL'
-    # A manually written assertion is not accepted as an automatic end-to-end pass.
-    return {'checks':checks,'overall':'INCOMPLETE_UNTIL_CLIENT_TLS_AND_BUZZ_ROUNDTRIP_TESTED'}
+    services_ready=all(checks[name]=='PASS' for name in ('tailscale','openclaw','docker','fetch_egress','proxy'))
+    profiles_ready=len(checks['profiles'])==len(PROFILES) and all(
+        row.get('gateway')=='PASS' for row in checks['profiles'].values())
+    installs_ready=checks['extension_smokes']!='MISSING' and checks['gbrain']!='MISSING'
+    auth_ready=not probe or all(row.get('auth')=='PASS' for row in checks['profiles'].values())
+    return {'checks':checks,'overall':'SERVICES_RUNNING' if services_ready and profiles_ready and installs_ready and auth_ready else 'INCOMPLETE',
+            'client_verification':'NOT_TESTED'}
 
 
 def main():
     if os.geteuid()!=0: raise StackError('Server operator/root context required')
-    p=argparse.ArgumentParser(); p.add_argument('action',choices=['preflight','host','buzz','openclaw','proxy','extensions','bind-buzz','status','identities','models','profiles','gbrain','memory-smoke','acceptance'])
+    p=argparse.ArgumentParser(); p.add_argument('action',choices=['preflight','host','openclaw','proxy','extensions','status','models','profiles','gbrain','memory-smoke','acceptance'])
     p.add_argument('--stage',type=pathlib.Path,default=BASE/'stage')
     p.add_argument('--probe',action='store_true'); a=p.parse_args()
     cfg=json.load(sys.stdin) if not sys.stdin.isatty() else {}
@@ -351,11 +348,9 @@ def main():
     lock=json.loads((a.stage/'deployment.lock.json').read_text()) if (a.stage/'deployment.lock.json').exists() else {}
     if a.action=='preflight': result=preflight()
     elif a.action=='host': result=init_host(cfg,a.stage)
-    elif a.action=='buzz': result=buzz_install(cfg,a.stage,lock)
     elif a.action=='openclaw': result=openclaw_install(cfg,a.stage,lock)
     elif a.action=='proxy': result=proxy_install(cfg,lock)
     elif a.action=='extensions': result=extensions_install(a.stage)
-    elif a.action=='bind-buzz': result=bind_buzz(cfg)
     elif a.action=='models':
         from profiles_runtime import configure_models
         result=configure_models(cfg,cfg.get('profile'))
@@ -372,9 +367,6 @@ def main():
     elif a.action=='acceptance':
         from acceptance import smoke
         result=smoke()
-    elif a.action=='identities':
-        # Caller MUST capture privately; never display this response in chat/logs.
-        keys=json.loads((STATE/'identities.json').read_text()); result={'owner':keys['owner']}
     else: result=status(a.probe)
     print(json.dumps(result,ensure_ascii=False))
 

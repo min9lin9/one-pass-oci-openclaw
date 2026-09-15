@@ -33,7 +33,6 @@ def npm_version(name):
 def prepare(where):
     stage_extensions(ROOT/'manifests/extensions.json',where)
     print('STAGING infrastructure sources (no installation scripts executed)',flush=True)
-    buzz=snapshot('block/buzz','main',where/'core/buzz')
     cf=snapshot('caddy-dns/cloudflare','master',where/'core/caddy-dns-cloudflare')
     bootstrap={}
     for name,url in [('openclaw-install-cli.sh','https://openclaw.ai/install-cli.sh'),
@@ -47,11 +46,10 @@ def prepare(where):
         aux[sid]={'repo':source['repo'],'commit':commit,'sha256':digest_tree(dest)}
     sdk=get_json('https://pypi.org/pypi/oci/json')['info']['version']
     if not re.fullmatch(r'\d+\.\d+\.\d+',sdk): raise StackError('Invalid OCI SDK version')
-    oc=npm_version('openclaw'); bp=npm_version('@openclaw/buzz'); codex=npm_version('@openai/codex')
-    lock={'schema':3,'aux_sources':aux,'oci_sdk_version':sdk,'buzz_commit':buzz,'buzz_tree_sha256':digest_tree(where/'core/buzz'),
+    oc=npm_version('openclaw'); codex=npm_version('@openai/codex')
+    lock={'schema':3,'aux_sources':aux,'oci_sdk_version':sdk,
       'caddy_dns_commit':cf,'caddy_tree_sha256':digest_tree(where/'core/caddy-dns-cloudflare'),
       'openclaw_version':oc['version'],'openclaw_npm_integrity':oc['integrity'],
-      'buzz_plugin_version':bp['version'],'buzz_plugin_npm_integrity':bp['integrity'],
       'codex_version':codex['version'],'bootstrap':bootstrap}
     atom_json(where/'deployment.lock.json',lock)
     print('PREPARED_NOT_REVIEWED; inspect selected code and bootstrap files, then seal with review notes')
@@ -62,7 +60,6 @@ def verify_core(where):
     for name,entry in lock['bootstrap'].items():
         if hashlib.sha256((where/'core'/name).read_bytes()).hexdigest()!=entry['sha256']:
             raise StackError('Bootstrap script changed after preparation')
-    if digest_tree(where/'core/buzz')!=lock['buzz_tree_sha256']: raise StackError('Buzz source changed')
     if digest_tree(where/'core/caddy-dns-cloudflare')!=lock['caddy_tree_sha256']: raise StackError('Caddy plugin source changed')
     if lock.get('schema')!=3: raise StackError('Re-prepare sources for v0.3; do not reuse a v0.2 review receipt')
     expected={'oci-instance-creator','gbrain','ecc'}
@@ -103,7 +100,7 @@ def ssh(cfg,command,data=None,timeout=3600,check=True):
 
 def remote(cfg,action,extra=None,probe=False):
     payload={k:cfg[k] for k in ('DOMAIN','CLOUDFLARE_API_TOKEN','CLOUDFLARE_DNS01_TOKEN',
-             'TAILSCALE_AUTH_KEY','OPENCLAW_MODEL','BUZZ_ROOM_ID','BUZZ_OWNER_PUBKEY',
+             'TAILSCALE_AUTH_KEY','OPENCLAW_MODEL',
              'OPENCODE_API_KEY','OPENCODE_CATALOG','OPERATIONS_AUTH','PLANNING_AUTH','DEVELOPMENT_AUTH',
              'OPERATIONS_MODEL','PLANNING_MODEL','DEVELOPMENT_MODEL') if cfg.get(k)}
     payload.update(extra or {})
@@ -145,7 +142,7 @@ def cloudflare_zone(cfg):
 
 def dns_plan(cfg,zone,ip):
     ip=tailnet_ipv4(ip); actions=[]
-    for sub in ('buzz','openclaw'):
+    for sub in ('openclaw',):
         name=sub+'.'+cfg['DOMAIN']
         records=cf_request(cfg['CLOUDFLARE_API_TOKEN'],'GET',f'/zones/{zone}/dns_records?'+urllib.parse.urlencode({'name':name}))['result']
         conflicts=[r for r in records if r['type'] in ('A','AAAA','CNAME')]
@@ -218,23 +215,19 @@ def setup(cfg,where,local_state):
     upload(cfg,where)
     print('CONFIGURING_HOST',flush=True)
     host=remote(cfg,'host'); ip=tailnet_ipv4(host['tailscale_ip'])
-    actions=dns_plan(cfg,zone,ip)  # validate both hosts before writes
+    actions=dns_plan(cfg,zone,ip)  # validate the private OpenClaw host before writes
     for method,path,body in actions: cf_request(cfg['CLOUDFLARE_API_TOKEN'],method,path,body)
     print('DNS_CONFIGURED_PRIVATE_IP',flush=True)
-    for phase in ('buzz','openclaw','proxy','extensions','gbrain'):
+    for phase in ('openclaw','proxy','extensions','gbrain'):
         print('CONFIGURING_'+phase.upper(),flush=True)
         receipt=remote(cfg,phase)
         atom_json(local_state/(phase+'.json'),receipt)
-    # Export owner identity directly to a protected local file, never chat/stdout.
-    owner=remote(cfg,'identities')
-    atom_json(local_state/'buzz-owner.secret.json',owner)
-    if cfg.get('BUZZ_ROOM_ID'): atom_json(local_state/'buzz-bind.json',remote(cfg,'bind-buzz'))
     result=remote(cfg,'status'); atom_json(local_state/'status.json',result)
     star_prompt_repo()
     print(json.dumps({'state':'INSTALLED_PENDING_ACCEPTANCE','report':str(local_state/'status.json'),
-      'next':['ChatGPT OAuth for selected profiles, then models --probe','Buzz owner/room Bot-role approval','gstack full host setup',
+      'next':['Confirm existing profile authentication with models --probe','gstack full host setup',
               'operations -> planning -> development task roundtrip','GBrain new-conversation recall',
-              'TLS and actual Buzz message roundtrip','encrypted backup export and restore drill']},ensure_ascii=False,indent=2))
+              'OpenClaw HTTPS client check','encrypted backup export and restore drill']},ensure_ascii=False,indent=2))
 
 
 def hydrate_handoff(cfg,local_state):
@@ -309,7 +302,7 @@ def lifecycle(cfg,action,snapshot_id=None,confirm=None):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('action',choices=['plan','prepare','seal','verify-sources','discover','trust-host','setup','status','repair','oauth',
-                    'bind-buzz','gstack-full','gbrain','memory-smoke','provision','oci-plan','models','profiles','acceptance','backup','restore','uninstall','update','star'])
+                    'gstack-full','gbrain','memory-smoke','provision','oci-plan','models','profiles','acceptance','backup','restore','uninstall','update','star'])
     p.add_argument('--secrets',type=pathlib.Path,default=DEFAULT_HOME/'secrets.env')
     p.add_argument('--stage',type=pathlib.Path,default=DEFAULT_HOME/'stage')
     p.add_argument('--state',type=pathlib.Path,default=DEFAULT_HOME/'state')
@@ -338,8 +331,7 @@ def main():
     elif a.action=='status':
         value=remote(cfg,'status',probe=a.probe); atom_json(a.state/'status.json',value)
         print(json.dumps(value,indent=2));
-        if value['overall']!='READY': sys.exit(3)
-    elif a.action=='bind-buzz': print(json.dumps(remote(cfg,'bind-buzz'),indent=2))
+        if value['overall']!='SERVICES_RUNNING': sys.exit(3)
     elif a.action in ('models','profiles','gbrain','memory-smoke','acceptance'):
         value=remote(cfg,a.action,{'profile':a.profile} if a.profile else {},probe=a.probe)
         atom_json(a.state/(a.action+'.json'),value);print(json.dumps(value,indent=2))

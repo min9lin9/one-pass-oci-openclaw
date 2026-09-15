@@ -1,7 +1,7 @@
 import io, json, os, pathlib, sys, tarfile, tempfile, unittest
 from unittest.mock import patch
 ROOT=pathlib.Path(__file__).resolve().parents[1]; sys.path.insert(0,str(ROOT/'scripts'))
-import extensions, stack, stacklib, public_read, document_read
+import extensions, stack, stacklib, public_read, document_read, remote, profiles_runtime
 from stacklib import StackError
 
 class ValidationTests(unittest.TestCase):
@@ -80,12 +80,90 @@ class SourceTests(unittest.TestCase):
             second=extensions.install_one(src,dst,{'commit':'a'*40},{'sample':r})
             self.assertEqual(r['installed_sha256'],second['installed_sha256'])
 
+class OpenClawOnlyWorkflowTests(unittest.TestCase):
+    def test_prepare_has_no_buzz_source_or_plugin(self):
+        captured={}
+        package={'version':'1.2.3','integrity':'sha512-fixture'}
+        with patch.object(stack,'stage_extensions'), \
+             patch.object(stack,'snapshot',return_value='a'*40) as snapshot, \
+             patch.object(stack,'download',return_value='b'*64), \
+             patch.object(stack,'digest_tree',return_value='c'*64), \
+             patch.object(stack,'get_json',return_value={'info':{'version':'1.2.3'}}), \
+             patch.object(stack,'npm_version',return_value=package) as npm, \
+             patch.object(stack,'atom_json',side_effect=lambda path,value:captured.update(value)):
+            stack.prepare(pathlib.Path('/fixture/stage'))
+        self.assertNotIn('block/buzz',[call.args[0] for call in snapshot.call_args_list])
+        self.assertNotIn('@openclaw/buzz',[call.args[0] for call in npm.call_args_list])
+        self.assertFalse(any(key.startswith('buzz_') for key in captured))
+
+    def test_setup_runs_only_openclaw_components(self):
+        cfg={'DOMAIN':'example.com','CLOUDFLARE_API_TOKEN':'test-secret-not-real',
+             'ORACLE_HOST':'192.0.2.1'}
+        with tempfile.TemporaryDirectory() as td, \
+             patch.object(stack,'verify_all'), \
+             patch.object(stack,'cloudflare_zone',return_value='zone'), \
+             patch.object(stack,'ssh'), \
+             patch.object(stack,'upload'), \
+             patch.object(stack,'dns_plan',return_value=[]), \
+             patch.object(stack,'atom_json'), \
+             patch.object(stack,'star_prompt_repo'), \
+             patch.object(stack,'remote',side_effect=lambda _cfg,action,*args,**kwargs:
+                          {'tailscale_ip':'100.64.1.1'} if action=='host' else
+                          ({'overall':'READY'} if action=='status' else {'phase':action})) as remote:
+            stack.setup(cfg,pathlib.Path(td)/'stage',pathlib.Path(td)/'state')
+        actions=[call.args[1] for call in remote.call_args_list]
+        self.assertEqual(actions,['host','openclaw','proxy','extensions','gbrain','status'])
+
+    def test_proxy_routes_only_openclaw(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=pathlib.Path(td);base=root/'base';state=root/'state';etc=root/'etc'
+            base.mkdir();state.mkdir();etc.mkdir()
+            (state/'network.json').write_text('{"tailscale_ip":"100.64.1.1"}')
+            lock={'caddy_dns_commit':'a'*40}
+            (state/'caddy-build-lock.json').write_text(json.dumps({
+                'cloudflare_commit':lock['caddy_dns_commit'],
+                'parents':{'caddy:2-builder':'builder@sha256:x','caddy:2-alpine':'caddy@sha256:y'},
+                'caddy_version':'v2.10.0'}))
+            with patch.object(remote,'BASE',base),patch.object(remote,'STATE',state), \
+                 patch.object(remote,'ETC',etc),patch.object(remote,'write') as write, \
+                 patch.object(remote,'atom_json'), \
+                 patch.object(remote,'run',return_value=__import__('subprocess').CompletedProcess([],0,b'',b'')) as run:
+                remote.proxy_install({},lock)
+            caddy=next(call.args[1] for call in write.call_args_list if pathlib.Path(call.args[0]).name=='Caddyfile')
+            compose=run.call_args_list[-1].args[0]
+            self.assertIn('--force-recreate',compose)
+            self.assertIn('https://openclaw.{$DOMAIN}',caddy)
+            self.assertNotIn('buzz.',caddy.lower())
+            self.assertIn('bind {$TAILSCALE_IP}',caddy)
+
+    def test_status_reports_services_without_claiming_client_verification(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=pathlib.Path(td);base=root/'base';state=root/'state';home=root/'home'
+            base.mkdir();state.mkdir();(home/'.local/state/oracle-ai-stack').mkdir(parents=True)
+            (base/'compose.proxy.json').write_text('{}')
+            (home/'.local/state/oracle-ai-stack/runtime-checks.json').write_text('{}')
+            (state/'gbrain-install.json').write_text('{}')
+            profiles={name:{'gateway':'PASS','auth':'NOT_PROBED'} for name in ('operations','planning','development')}
+            def command(args,**kwargs):
+                stdout=b'proxy\n' if args[:4]==['docker','compose','-f',str(base/'compose.proxy.json')] else b''
+                return __import__('subprocess').CompletedProcess(args,0,stdout,b'')
+            with patch.object(remote,'BASE',base),patch.object(remote,'STATE',state),patch.object(remote,'HOME',home), \
+                 patch.object(remote,'run',side_effect=command) as run, \
+                 patch.object(profiles_runtime,'profile_status',return_value=profiles):
+                result=remote.status()
+            self.assertEqual(result['overall'],'SERVICES_RUNNING')
+            self.assertEqual(result['client_verification'],'NOT_TESTED')
+            self.assertFalse(any('buzz' in key.lower() for key in result['checks']))
+            self.assertFalse(any('oracle-buzz' in str(call.args) for call in run.call_args_list))
+
+
 class NetworkTests(unittest.TestCase):
     cfg={'DOMAIN':'example.com','CLOUDFLARE_API_TOKEN':'test-secret-not-real'}
     def test_dns_no_public_proxy(self):
         with patch('stack.cf_request',return_value={'result':[]}):
             actions=stack.dns_plan(self.cfg,'zone','100.64.1.1')
-            self.assertEqual(len(actions),2)
+            self.assertEqual(len(actions),1)
+            self.assertEqual(actions[0][2]['name'],'openclaw.example.com')
             self.assertFalse(actions[0][2]['proxied'])
     def test_dns_does_not_overwrite_unmanaged(self):
         with patch('stack.cf_request',return_value={'result':[{'type':'A','content':'192.0.2.1','id':'x'}]}):

@@ -15,10 +15,6 @@ inspection; actual installation records resolved commit hashes separately.
 - OpenClaw Gateway configuration: https://docs.openclaw.ai/gateway/config-gateway
 - OpenClaw security model: https://docs.openclaw.ai/gateway/security
 - Native/ACP coding session differences: https://docs.openclaw.ai/tools/acp-agents
-- Buzz channel, member and room role requirements, text/media limits:
-  https://docs.openclaw.ai/channels/buzz
-- Buzz production bundle: https://github.com/block/buzz/tree/main/deploy/compose
-  Inspected README.md, compose.yml, .env.example, compose.caddy.yml and run.sh.
 - Tailscale CLI and auth keys: https://tailscale.com/docs/reference/tailscale-cli
   and https://tailscale.com/docs/features/access-control/auth-keys
 - Cloudflare DNS API: https://developers.cloudflare.com/api/resources/dns/subresources/records/
@@ -69,6 +65,12 @@ inspection; actual installation records resolved commit hashes separately.
 ## Considered but not bulk-installed
 - https://github.com/min9lin9/knowledge-manager
 - https://github.com/min9lin9/visualization-stack-skills
+
+## Retired from the active design
+- Buzz: https://docs.openclaw.ai/channels/buzz and
+  https://github.com/block/buzz/tree/main/deploy/compose.
+  These were inspected for the former deployment. Current preparation and setup
+  do not require Buzz; see `buzz.md` only for historical recovery context.
 
 The connected repository inventory was read to find candidates. Public/private metadata
 visibility does not imply code review, installation or authorization to redistribute private

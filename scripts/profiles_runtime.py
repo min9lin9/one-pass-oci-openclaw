@@ -116,7 +116,7 @@ def install(cfg,stage,lock):
         if not config.exists():
             generated=config_for(p,cfg,secrets.token_urlsafe(32))
             # No invented model ID. Until auth/catalog/probe passes, no worker
-            # job is accepted and Buzz binding is blocked.
+            # job is accepted.
             atom_json(config,generated);own(p.state,p.user)
         else:
             old=json.loads(config.read_text())
@@ -142,11 +142,6 @@ def install(cfg,stage,lock):
         own(p.state,p.user)
         oc(p,'config','validate')
         write('/etc/systemd/system/'+p.unit,gateway_unit(p),mode=0o644)
-    op=PROFILES['operations']
-    marker=STATE/'buzz-plugin.json'
-    if not marker.exists():
-        oc(op,'plugins','install','@openclaw/buzz@'+lock['buzz_plugin_version'])
-        atom_json(marker,{'version':lock['buzz_plugin_version'],'profile':'operations'})
     install_worker_units()
     run(['systemctl','daemon-reload'])
     for p in PROFILES.values(): run(['systemctl','enable','--now',p.unit])

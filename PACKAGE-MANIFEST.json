@@ -11,11 +11,11 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "2e9836cc4fed313264845377cdf42c9a2f6fa5a17575fb4ef1c3706d800db277",
+      "sha256": "40b24bdb87bcc3e5ca889c29eb325f85e207c76409238c3ec1913398566bf379",
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "dc5274423b572f86af09e2c92c9ff9ae9a610eed29d688b137f0f619c0ae7dc2",
+      "sha256": "62ceb3fc519acafb573121033a593363eb94d0ec384e76f266478b1100eac2a9",
       "executable": false
     },
     "LICENSE": {
@@ -23,7 +23,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "41f5e18b4c223e736eff31a0c3fc3444f13eb072bd5e063168f3e6a85d52ec00",
+      "sha256": "634dcb98d817d8bc113dbd0a35fe5d8817051cde4a7bc967918273a075411de0",
       "executable": false
     },
     "REVIEW.md": {
@@ -35,11 +35,11 @@
       "executable": false
     },
     "SKILL.md": {
-      "sha256": "2c9bd2a6f73f5cd758b0989244b90ea0d9893fed3fea6adbf1f2af1c29330f31",
+      "sha256": "afca9aab154e4fcc07e3ca10f38f0b538e262278d65d3d15f5c9b80b7f781430",
       "executable": false
     },
     "TEST-REPORT.md": {
-      "sha256": "728de6426c793d433e656a762bfb2399772aa39f10ca5536c53c6ed26b7c4573",
+      "sha256": "9c88dcc17f27d78b3796a1b68ffa6dafbe5a935b445f0cc44e0f3f7e1c63846c",
       "executable": false
     },
     "THIRD_PARTY_NOTICES.md": {
@@ -83,19 +83,19 @@
       "executable": false
     },
     "manifests/bootstrap-sources.json": {
-      "sha256": "241ef4b76b3ff93e790bc3821aa33a1900c18781daee17374557b9db615dc293",
+      "sha256": "4759a4d24a31b664eeca38d778a3ab9fc3fdc8c53dc2fa6960ff6328070f51cf",
       "executable": false
     },
     "manifests/extensions.json": {
-      "sha256": "f847bec72553871f4fbae78e3b7469d7c4fa63398efc9c60b8cb2e472232a956",
+      "sha256": "8038d89b1c46807bbab9501f3020d5fd11bc953cd90e591347a9b6a1717f0a6f",
       "executable": false
     },
     "references/acceptance.md": {
-      "sha256": "f1dad66261446c2a2e368dc60bf5eebcde33183cdbdd251ae730caf6a02b1f53",
+      "sha256": "97f384efb7a69c37fef266bce771fe877cf72d82b639698ae7fde5ca52cf749a",
       "executable": false
     },
     "references/buzz.md": {
-      "sha256": "60a4468098c0998e7a719c44f7d4df66e24c5278cfa48902ae0e4a2884dbd4eb",
+      "sha256": "a320ed438675c15b0821bac9967f9fd903f7c26540402bc66fa56c03a587daa7",
       "executable": false
     },
     "references/catalog.md": {
@@ -103,11 +103,11 @@
       "executable": false
     },
     "references/gstack.md": {
-      "sha256": "9c0dd9745fa025d0b24395d050ec915b3f8e47e1b6c4442a80c18d350c36cb5e",
+      "sha256": "6710a5413354ebd378749cb1f95940bde3035db63ef16206396a13edd154d228",
       "executable": false
     },
     "references/lifecycle.md": {
-      "sha256": "8cfc17fa281eae7149371164fe5af6c9e919811bb3a02916633a39340c1d6e0c",
+      "sha256": "f03fc7516e87f2aa13a41897a911e55b187e73ca00eb6a8e3c70fdf4514284d0",
       "executable": false
     },
     "references/oci-provisioning.md": {
@@ -118,8 +118,12 @@
       "sha256": "52468bd7015be9c34b70900daed31b78977409d555a5047cc7fb3e12c7896eda",
       "executable": false
     },
+    "references/openclaw-only.md": {
+      "sha256": "0f226fa92c27ad70e2493df1a0d4eb0544bbc064cd4e60021b9fc3c009e05ef7",
+      "executable": false
+    },
     "references/profiles-and-auth.md": {
-      "sha256": "45b58a14508d9f5bc7d3741c5a070a025bb68fbce971c1227c43371a74768416",
+      "sha256": "dc592af383db9fe01c4b2ca02b37a2384ebd50aff69a1821c0d7b764de973d8a",
       "executable": false
     },
     "references/source-review.md": {
@@ -127,15 +131,15 @@
       "executable": false
     },
     "references/sources.md": {
-      "sha256": "cd39001d2071537149eb39d01e49b6c3732c4147df689f0047fa9eb687b865d3",
+      "sha256": "970bc2ebc55e71bead29a8bd300bd56104865b2bb739eca3a6f26d0a62f23126",
       "executable": false
     },
     "scripts/acceptance.py": {
-      "sha256": "ca971af9bb141eab33cdb8f4c0557f4aed5c4767090f3836ac952cef2eb3b166",
+      "sha256": "9a3fc645af6fa288ea41e975a1c0e16e735599d50221f0dc13fa44bda2802389",
       "executable": false
     },
     "scripts/check.py": {
-      "sha256": "04f466eb95c9aec12b4209ddfb98b9a2f474e571a6158dc0f4a3b062dbe27a6f",
+      "sha256": "521c23d35e4554a33ebe4f91277ca456c4826e0974fb38993b1d3fb414b0eebe",
       "executable": false
     },
     "scripts/dispatch.py": {
@@ -147,7 +151,7 @@
       "executable": false
     },
     "scripts/evidence.py": {
-      "sha256": "57aa245fce1597799bcb94fc150fc37d1795fd13756e90d3cd8769e38abdeccb",
+      "sha256": "c8fb3f4ce944b0eb834b16df40012cd0364cbaba7a21c363fa1e305babe98ccb",
       "executable": false
     },
     "scripts/extensions.py": {
@@ -191,7 +195,7 @@
       "executable": false
     },
     "scripts/operations.py": {
-      "sha256": "597031de4a57d1c7db1d4d5ec766bff6e0ba190517ebeb40a6d6eb82b27cfa0f",
+      "sha256": "18a58d13e61b080323af69b4378b6614a4fbadaea03b02f6de1053543a98f6a3",
       "executable": false
     },
     "scripts/operator_lock.py": {
@@ -215,11 +219,11 @@
       "executable": false
     },
     "scripts/profile_spec.py": {
-      "sha256": "c514a6f1a0543d7a0ca445fa63c61328d412f604a2641c8cc5cb2f398aa099e2",
+      "sha256": "19428071cfaf4759264111afd682eec2da42b231d2de346062933cc38257ad5b",
       "executable": false
     },
     "scripts/profiles_runtime.py": {
-      "sha256": "e37226252053d0dd41742cd6406bc2e65e3c5225328a2a632e4e41babc608f20",
+      "sha256": "5d6965c4f809ee0b4194eaecf7913835ef20101e8545de0ef43013bb4a9a7d50",
       "executable": false
     },
     "scripts/public_read.py": {
@@ -227,11 +231,11 @@
       "executable": false
     },
     "scripts/publish.py": {
-      "sha256": "ac2017128e2ceb3df12c4ed9fb2b0fcfdd52ac3430a198bf2dea646608bdfade",
+      "sha256": "babc27135c1c1b2f9c04f04b093e5be79ddc49a21d0ffcfe37695ebd8a5368ab",
       "executable": false
     },
     "scripts/remote.py": {
-      "sha256": "aa24e577b323ad4a560580389ab055107a02feb53cfa6cd4ae991ca6f60fa661",
+      "sha256": "94dfa94fc953cfb1f089fe3f3e6a2d7c464b43077a88e1238a2f496ad4a2ce16",
       "executable": false
     },
     "scripts/runtime_setup.py": {
@@ -239,7 +243,7 @@
       "executable": false
     },
     "scripts/stack.py": {
-      "sha256": "b5082641abdd19b6886bf700e46c99c47823904edbe63204bcbcd00d225f899d",
+      "sha256": "7b9ec5b66d6707c563bfb5d5ffa2ef2509762a6310eb1a472a917a0c6dffc1d5",
       "executable": false
     },
     "scripts/stacklib.py": {
@@ -259,7 +263,7 @@
       "executable": false
     },
     "templates/profiles/operations/AGENTS.md": {
-      "sha256": "ef668fd3f14895092f3d7d4eaf42cdf0cd102f66bcbd0f60e06d07fdf1397927",
+      "sha256": "bc8df1c081adaef32ad0232964b28b408aaecf431f5da92f33042d448623bbae",
       "executable": false
     },
     "templates/profiles/planning/AGENTS.md": {
@@ -267,19 +271,19 @@
       "executable": false
     },
     "templates/secrets.env.example": {
-      "sha256": "e209c32038e03e9703ad64e1f0845c5d2ce551fb3f4ffda7a0d4a710cf4920ac",
+      "sha256": "e9418519438067e8d6e9ef06d2c6751b3e39016422e0e86f070c23e037027501",
       "executable": false
     },
     "tests/test_review.py": {
-      "sha256": "15861b6f1737690a61c52894225d181d2aaa5f58f23bc9e3bea9bf55b7891d14",
+      "sha256": "1e31b61695fa8cd343aa5e692e35255975141002480a69622a38ccaec2e86ced",
       "executable": false
     },
     "tests/test_stack.py": {
-      "sha256": "fb8701c65e37fb32f02426b2499de0c5db20a66d1866f07267fa50ff9a3f9c93",
+      "sha256": "12f3c0ef58ee801a5b87ef7235ab188d3a42c8698e2a6dd2ed218896b3a31c74",
       "executable": false
     },
     "tests/test_v03.py": {
-      "sha256": "33e85672ee89caaed72d74c3c9090e5134d811ec629be9da409a7e932fc72d67",
+      "sha256": "e9ad0faecc05609e222b11cb1b8ff93b198b5fd0bbb52836611832cff4a58576",
       "executable": false
     }
   }

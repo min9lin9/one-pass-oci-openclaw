@@ -1,4 +1,15 @@
-# Test report — 0.4.0-beta
+# OpenClaw-only transition — 2026-09-15
+
+On macOS ARM64, `python3 scripts/check.py` passed **167 tests**. Python, shell
+and JSON checks passed; changed Python files had no LSP errors.
+The readiness regression first failed with `READY != SERVICES_RUNNING`, then
+passed after status stopped claiming complete client verification.
+
+WineyCellar verification is recorded in `references/openclaw-only.md`, including
+an actual authenticated Control UI response after Buzz retirement. These live
+checks are separate from the offline suite and the historical report below.
+
+# Historical test report — 0.4.0-beta
 
 Date: 2026-09-14. Environment: this session's Linux container, not Oracle A1.
 

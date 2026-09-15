@@ -47,7 +47,7 @@ def run(root,*,apply=False,public=False):
         except ValueError:raise PublishError('Repository lookup failed without a confirmed 404; no mutation')
         if str(error.get('status'))!='404':raise PublishError('Repository lookup did not confirm 404; no mutation')
         command(['gh','repo','create',REPO,'--public' if public else '--private',
-                 '--description','Reviewed local Codex skill: OCI provisioning, private Buzz/OpenClaw, isolated profiles'])
+                 '--description','Reviewed local Codex skill: OCI provisioning, private OpenClaw, isolated profiles'])
     metadata=json.loads(command(['gh','api','repos/'+REPO]).stdout)
     if metadata.get('full_name','').lower()!=REPO.lower():raise PublishError('Unexpected repository identity')
     if not metadata.get('permissions',{}).get('push'):raise PublishError('No push permission for the exact target repository')

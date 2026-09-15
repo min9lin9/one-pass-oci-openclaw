@@ -23,8 +23,8 @@ intent reliable: external text must still be treated as untrusted task data.
 OCI signing material: local Codex only. SSH private key: local PC only.
 Cloudflare DNS token: local DNS management; certificate token: root-protected proxy.
 Tailscale auth key: temporary root file, removed after enrollment.
-Buzz human owner private key: local protected export/root state, not given to model.
-Buzz bot key: operations only. Worker profiles don't receive a messaging identity.
+Retired Buzz identities remain protected archival data, not active credentials
+for this design. Worker profiles do not receive a messaging identity.
 OpenCode API key: chosen profile service environment loaded from root600 EnvironmentFile;
 not baked into unit strings or printed subprocess args. A process with exec can read its own
 environment; this is not protection from that profile's own malicious code.
@@ -56,7 +56,7 @@ must be verified against the installed current CLI before extending the wrapper.
 ## Resource plan (limits, not measurements)
 One delegated worker job at a time; each profile maxConcurrent=1. Three services share
 an oracle-agents.slice ceiling 7GiB, each Gateway MemoryMax3GiB. These are policy caps,
-not measured requirements or a guarantee that Buzz + browser + builds fit 12GB.
+not measured requirements or a guarantee that browser + builds fit 12GB.
 If OOM occurs, observe logs/load and reduce work; do not automatically resize OCI.
 Large builds/full GBrain background enrichment are not part of this profile.
 

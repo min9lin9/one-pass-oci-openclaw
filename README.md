@@ -1,12 +1,14 @@
 # one-pass-oci-openclaw
 
-**개인 PC의 Codex에서 호출하는 OCI → OpenClaw·Buzz 구축 스킬.**
+**개인 PC의 Codex에서 호출하는 OCI → OpenClaw 전용 구축 스킬.**
 
 `min9lin9/one-pass-oci-openclaw`라는 요청된 이름을 그대로 사용합니다. 제품 이름은 **OpenClaw**이며, 저장소 이름의 `openclaw`는 의도적으로 보존했습니다.
 
 **버전: 0.4.0-beta · 검토일: 2026-09-14**
 
-> 현재 상태: v0.3 소스를 재검토·수정한 설치 후보입니다. 로컬 테스트는 통과했지만 실제 OCI/ARM 배포·모델 인증·Buzz 왕복은 검증하지 않았습니다. 이 패키지를 만들었다는 사실과 사용자의 서버/저장소를 변경했다는 사실은 다릅니다.
+> 현재 설계: 사용자 결정에 따라 Buzz를 제외하고 OpenClaw의 웹 화면을 사용합니다.
+> 기존 원격 저장소의 보안·CI 개선은 유지합니다. 패키지 검사와 특정 OCI 인스턴스의
+> 실사용 검증은 구분하며, 배포 기록은 `references/openclaw-only.md`에 남깁니다.
 
 ## 1. 무엇을 하는 스킬인가
 
@@ -21,16 +23,19 @@
 | OCI | A1 Flex ARM, 2 OCPU / 12GB, Ubuntu 24.04, 기본 부트 50GB |
 | 최초 생성 | `min9lin9/oci-instance-creator` 절차를 참고한 공식 OCI SDK 어댑터 |
 | 접근 | Tailscale 내부 전용, Cloudflare DNS-only 레코드, DNS-01 HTTPS |
-| 사용자 화면 | Buzz 운영용 Docker Compose; OpenClaw Native |
-| 도메인 | `buzz.<domain>` / `openclaw.<domain>` |
-| 운영 | `operations` / Unix `openclaw` / 내부 18789 / Buzz + GBrain + gstack |
+| 사용자 화면 | OpenClaw Control UI |
+| 도메인 | `openclaw.<domain>` |
+| 운영 | `operations` / Unix `openclaw` / 내부 18789 / GBrain + gstack |
 | 기획 | `planning` / Unix `clawplan` / 내부 19789 / ECC Planner + Architect |
 | 개발 | `development` / Unix `clawdev` / 내부 20789 / ECC TDD + Code Reviewer |
 | 모델 | 각 프로필의 ChatGPT OAuth 또는 OpenCode Go/Zen API 키 |
 | 필수 확장 | gstack 네이티브 방법론, insane-search, 프롬프트 스킬, 문서·도식·MCP 보조 도구 |
 | 운영 도구 | restic 암호화 백업, Gitleaks, 독립 상태·작업 기록 |
 
-Buzz 도메인은 **Relay 접근 주소**입니다. HTTPS 주소가 열린다고 별도의 완전한 웹 클라이언트까지 설치된 것으로 판단하지 않습니다. 실제 Buzz 클라이언트와 봇의 방 권한을 확인해야 합니다.
+사용자는 Tailscale에 연결한 뒤 `https://openclaw.<domain>`으로 접속합니다.
+Gateway 인증과 브라우저 기기 승인은 유지합니다. Buzz 앱, 소유자 키, 방 생성은
+필요하지 않습니다. Caddy HTTPS 프록시는 Docker를 사용하지만 Buzz의
+Relay/PostgreSQL/Redis/MinIO는 정상 설치·실행 경로에서 제외합니다.
 
 ## 2. Codex에 설치
 
@@ -50,7 +55,7 @@ $one-pass-oci-openclaw
 
 ~/.config/oracle-ai-stack/secrets.env를 사용해 OCI 생성부터 구축해.
 소스를 검토하고 버전을 고정한 뒤 실행해.
-Buzz와 Tailscale 전용 도메인은 유지하고, operations에 GBrain·gstack,
+OpenClaw만 사용하고 Tailscale 전용 도메인은 유지해. operations에 GBrain·gstack,
 planning·development에는 독립 프로필과 지정된 모델 인증을 적용해.
 이미 확정한 요구는 다시 묻지 말고, 빠진 필수값·필요한 사용자 승인만 요청해.
 실행하지 않은 항목을 완료로 표시하지 마.
@@ -83,7 +88,6 @@ chmod 600 ~/.config/oracle-ai-stack/secrets.env
 | `OPENCODE_API_KEY` | Go 또는 Zen 이용 권한이 있는 키; 선택 |
 | `OPERATIONS_AUTH`, `PLANNING_AUTH`, `DEVELOPMENT_AUTH` | `chatgpt`, `opencode-go`, `opencode` 중 선택 |
 | `*_MODEL` | 선택: 해당 제공자 카탈로그에서 검증할 실제 모델 참조 |
-| `BUZZ_ROOM_ID` | 사람이 생성·선택한 실제 방, 봇 역할 승인 후 입력 |
 
 OCI 서명키와 SSH 키는 다릅니다. OCI 계정·API 키 등록·도메인 구매·Tailnet 계정·유료 모델 구독은 자동으로 만들어진 것으로 가정하지 않습니다. API 키가 있더라도 Go와 Zen의 이용 권한이 같다고 가정하지 않습니다.
 
@@ -95,7 +99,7 @@ Codex는 `SKILL.md`를 읽고 다음 절차를 진행합니다. 아래는 내부
 
 ```text
 plan → prepare → source review → seal → oci-plan → setup
-     → profile OAuth / models → Buzz owner & bot role → bind-buzz
+     → profile OAuth / models → OpenClaw browser authentication
      → gstack full-host checks → GBrain recall → delegation → client acceptance
      → backup / off-host copy / staged restore / recovery drill
 ```
@@ -137,7 +141,7 @@ python3 scripts/stack.py models --profile development
 
 ## 5. 오케스트레이션과 권한
 
-운영은 Buzz 요청을 받고 GBrain 기억과 gstack 방법론을 사용해 기획·개발에 일을 분배합니다. 운영은 **인프라 관리자 계정이 아닙니다**. OCI 서명키·Cloudflare 키·Docker 소켓·무제한 sudo를 받지 않습니다.
+운영은 OpenClaw 웹 화면의 요청을 받고 GBrain 기억과 gstack 방법론을 사용해 기획·개발에 일을 분배합니다. 운영은 **인프라 관리자 계정이 아닙니다**. OCI 서명키·Cloudflare 키·Docker 소켓·무제한 sudo를 받지 않습니다.
 
 작업 전달은 이 패키지의 Unix 소켓 어댑터입니다. OpenClaw 네이티브 기능이 독립 프로필 간 작업을 자동 전달한다고 설명하지 않습니다. 같은 UUID의 다른 입력은 거부하고, 통신 중단으로 결과가 불명확하면 자동 재실행하지 않습니다.
 
@@ -164,7 +168,10 @@ python3 scripts/stack.py restore --snapshot <실제_snapshot_id>
 
 **복원 명령은 별도 경로로 복원·검증하는 단계까지입니다.** 실행 중인 데이터 덮어쓰기와 실제 복구 훈련, 업데이트 적용, OCI 자원 삭제까지 완전 자동 구현했다고 주장하지 않습니다. 자세한 절차는 `references/lifecycle.md`를 따릅니다.
 
-`status`는 보수적인 상태 보고이며 클라이언트 TLS/Buzz 왕복 등 미검증 항목이 남으면 비정상 완료 코드 3을 반환합니다. 단순 파일 존재, 표식 응답, 컨테이너 명령 종료를 전체 성공으로 승격하지 않습니다.
+`status`는 보수적인 상태 보고이며 클라이언트 TLS와 실제 OpenClaw 응답 등
+미검증 항목을 구분합니다. Buzz 상태나 방 권한은 완료 조건이 아닙니다.
+`SERVICES_RUNNING`은 실행 중인 서비스 상태이며 전체 인수 검증 완료가 아닙니다.
+단순 파일 존재, 표식 응답, 컨테이너 명령 종료를 전체 성공으로 승격하지 않습니다.
 
 ## 7. 저장소에 게시
 
@@ -186,7 +193,9 @@ python3 scripts/publish.py --apply
 
 변경 근거는 `REVIEW.md`, 실행한 검사는 `TEST-REPORT.md`, 보안 경계는 `SECURITY.md`에 있습니다.
 
-현재 **미실행**: 실제 OCI 생성, ARM 의존성 설치, 세 프로필 부하, 실제 ChatGPT/OpenCode 호출, Buzz 방 메시지 왕복, GBrain 새 대화 회상/정정/철회, 전체 gstack 하네스, 재부팅·외부 백업·실복구.
+새 OCI 인스턴스 생성, 모든 제공자·사양의 부하, 호스트 재부팅과 실제 운영 데이터의
+덮어쓰기 복구를 보편적으로 검증했다고 주장하지 않습니다. WineyCellar의 실제 결과와
+현재 검사 결과는 `references/openclaw-only.md`를 확인합니다.
 
 루트의 `Design.md` 같은 강의 디자인 자료나 개인 자료는 이 저장소의 코드/검증 근거가 아니며 포함하지 않습니다.
 

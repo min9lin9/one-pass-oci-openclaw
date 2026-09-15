@@ -7,7 +7,7 @@ from __future__ import annotations
 import fcntl, json, os, pathlib, re, secrets, sys
 from stacklib import StackError, atom_json, run
 from profile_spec import PROFILES
-from remote import BASE,STATE,ETC,HOME,UNIT,COMPOSE,docker_compose,write
+from remote import BASE,STATE,ETC,write
 REPO=pathlib.Path('/var/backups/oracle-ai-stack/restic')
 PASSWORD=ETC/'restic-password'
 
@@ -26,13 +26,13 @@ def initialize():
 
 
 def own_volumes():
-    files=[COMPOSE,BASE/'compose.proxy.json']; names=set()
+    files=[BASE/'compose.proxy.json']; names=set()
     for file in files:
         if file.exists():
             for key,val in json.loads(file.read_text()).get('volumes',{}).items():
                 name=val.get('name',key)
-                if not name.startswith(('oracle-buzz_','oracle-proxy-')):
-                    raise StackError('Unmanaged volume in manifest')
+                if not name.startswith('oracle-proxy-'):
+                    raise StackError('Unmanaged volume in proxy manifest')
                 names.add(name)
     mounts={}
     for name in sorted(names):
@@ -40,14 +40,12 @@ def own_volumes():
         path=pathlib.Path(row['Mountpoint']).resolve()
         if path.name!='_data' or path.parent.name!=name: raise StackError('Unexpected Docker volume mountpoint')
         mounts[name]=str(path)
-    if not any('minio' in n for n in mounts) or not any('git-data' in n for n in mounts):
-        raise StackError('Missing Buzz object/Git volume from backup inventory')
     return mounts
 
 
 def running_containers():
     values=[]
-    for project in ('oracle-buzz','oracle-proxy'):
+    for project in ('oracle-proxy',):
         text=run(['docker','ps','-q','--filter','label=com.docker.compose.project='+project]).stdout.decode()
         values.extend(text.split())
     if any(not re.fullmatch('[0-9a-f]{12,64}',v) for v in values): raise StackError('Unexpected container ID')
@@ -62,8 +60,9 @@ def backup():
     inflight=run(['systemctl','list-units','--type=service','--state=active','--no-legend','--plain','oracle-worker-*@*.service'],check=False).stdout.decode().strip()
     if inflight:raise StackError('Worker tasks are active; finish or explicitly abort them before backup')
     metadata={'schema':3,'managed':json.loads((STATE/'managed.json').read_text()),'volume_mounts':mounts,
-              'consistency':'all managed writers stopped before file backup; database raw volume included',
-              'offsite_copy':'not provided by local repository alone'}
+              'consistency':'all managed OpenClaw profiles and proxy writers stopped before file backup',
+              'offsite_copy':'not provided by local repository alone',
+              'retained_legacy_data':'configuration/source files under managed paths are included if present; legacy container volumes are not required or stopped'}
     atom_json(STATE/'backup-inventory.json',metadata)
     paths=[*[str(p.home) for p in PROFILES.values()],str(BASE),str(ETC),str(STATE),*mounts.values(),
            *[ '/etc/systemd/system/'+p.unit for p in PROFILES.values() ],
@@ -92,7 +91,7 @@ def backup():
         if not summary or not summary.get('snapshot_id'): raise StackError('restic did not report a snapshot ID')
         restic('check')
         return {'snapshot':summary['snapshot_id'],'repository':str(REPO),'encrypted':True,
-                'scope':'Three profile homes incl. GBrain full PGLite DB + Buzz Postgres/Redis/MinIO/Git + proxy/config/identity data',
+                'scope':'Three OpenClaw profile homes including GBrain PGLite, proxy TLS volumes, managed source/configuration/state, units and reader policy; retained legacy files inside managed paths are included, but legacy container volumes are not',
                 'offsite':'PENDING export to local PC or a separate backup target'}
     finally:
         errors=[]
@@ -138,9 +137,8 @@ def uninstall(confirmation):
     if inflight:raise StackError('Worker tasks still active; no silent termination')
     for unit in ('oracle-worker-planning.socket','oracle-worker-development.socket',*[p.unit for p in PROFILES.values()]):
         run(['systemctl','disable','--now',unit])
-    if COMPOSE.exists(): docker_compose('down')  # Deliberately no -v.
     if (BASE/'compose.proxy.json').exists():
-        run(['docker','compose','-f',str(BASE/'compose.proxy.json'),'down'])
+        run(['docker','compose','-f',str(BASE/'compose.proxy.json'),'down'])  # Deliberately no -v.
     # Leave Tailscale, SSH, DNS, firewall, users, all data and restic intact.
     return {'state':'SERVICES_STOPPED_DATA_RETAINED','tailscale':'UNCHANGED','volumes':'RETAINED','oci_instance':'RETAINED_NOT_TERMINATED',
             'credentials':'RETAINED; rotate/revoke explicitly if decommissioning permanently'}

@@ -1,3 +1,11 @@
+# OpenClaw-only deployment — 2026-09-15
+
+Make OpenClaw Control UI the active interface. Remove Buzz from normal
+preparation, setup/repair, profile installation, DNS/proxy, status, acceptance
+and active-volume lifecycle paths. Preserve retired data and the three native
+profiles. Distinguish running services from verified client behavior.
+See `references/openclaw-only.md` for the applied OCI change and its evidence.
+
 # Publication target correction — 2026-09-14
 
 Correct the assistant-introduced `opnclaw` typo to the user-requested

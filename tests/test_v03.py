@@ -158,6 +158,11 @@ class ProfileTests(unittest.TestCase):
         for p in ps.PROFILES.values():
             unit=ps.gateway_unit(p);self.assertIn('EnvironmentFile=-/etc/',unit);self.assertNotIn('OPENCODE_API_KEY=',unit)
     def test_worker_nnp(self):self.assertIn('NoNewPrivileges=true',ps.gateway_unit(ps.PROFILES['development']))
+    def test_bun_path_is_operations_only(self):
+        bun='/home/openclaw/.local/share/oracle-ai-stack/bun/bin'
+        self.assertIn(bun,ps.environment(ps.PROFILES['operations'])['PATH'])
+        for name in ('planning','development'):
+            self.assertNotIn('/bun/bin',ps.environment(ps.PROFILES[name])['PATH'])
     def test_assignment_exclusive_ops(self):
         m=json.loads((ROOT/'manifests/bootstrap-sources.json').read_text())
         self.assertEqual(m['roles']['operations']['exclusive'],['gbrain','gstack'])

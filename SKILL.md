@@ -1,15 +1,17 @@
 ---
 name: one-pass-oci-openclaw
-description: Provision Oracle ARM from OCI account variables and operate private Buzz plus native OpenClaw with isolated operations/planning/development profiles; operations owns GBrain and gstack; support ChatGPT OAuth or OpenCode Go/Zen API credentials.
+description: Provision Oracle ARM from OCI account variables and operate Tailscale-private native OpenClaw with isolated operations/planning/development profiles; operations owns GBrain and gstack; support ChatGPT OAuth or OpenCode Go/Zen API credentials.
 ---
 # One-pass OCI OpenClaw — local Codex deployment controller v0.4-beta
 
 Read REVIEW.md and SECURITY.md first. Then read README.md, references/profiles-and-auth.md and references/oci-provisioning.md.
 This is a LOCAL Codex skill; the target does not need OpenClaw or even an existing
-VM. The user approved Oracle A1 2 OCPU/12GB, Ubuntu24.04ARM, Buzz production Docker,
-native OpenClaw, Tailscale-only buzz.<domain>/openclaw.<domain>, Cloudflare DNS-01,
+VM. The default new host is Oracle A1 2 OCPU/12GB, Ubuntu24.04ARM, with
+native OpenClaw, Tailscale-only openclaw.<domain>, Cloudflare DNS-01,
 local secrets, GBrain/gstack owned by operations, and distinct planner/developer.
-Do not ask these same decisions again. No Kimaki or Discord migration.
+Do not ask these same decisions again. The explicit current design excludes Buzz.
+Use OpenClaw Control UI; no Buzz room, identity, plugin or additional messaging
+integration is required. Preserve retired Buzz data unless deletion is requested.
 
 ## Authority and secret handling
 The user supplies ~/.config/oracle-ai-stack/secrets.env. Do NOT cat it into chat,
@@ -45,7 +47,7 @@ private keys and passphrases stay on the local PC and are never uploaded to the 
    private handoff from prior run. Uses tags/OCID/stable retry tokens, bounded
    attempts; no cron or silent larger shape. Obtains hostkey from signed console
    history, compares with SSH scan, then waits for cloud-init before configuring.
-7. Install Buzz, three isolated native profiles, private TLS, curated extensions,
+7. Install three isolated native profiles, private TLS, curated extensions,
    operations GBrain memory-only. Run each installer through scripts/stack.py,
    not ad hoc curl piped to root. Preserve existing configuration and user edits.
 8. Authentication: API workers are configured/probed with the explicit key/mode.
@@ -56,11 +58,11 @@ private keys and passphrases stay on the local PC and are never uploaded to the 
    `gstack-full`, then authenticate its separate Codex home and verify its actual
    read-only harness route/browser support. Do not assume OpenCode API key logs
    into Codex or a Claude subscription exists. Preserve pending state otherwise.
-10. Buzz identity: export owner privately, create/select a room as the human owner,
-    authorize dedicated bot's room role, set BUZZ_ROOM_ID, then `bind-buzz`.
+10. Open the private OpenClaw Control UI. Authenticate without exposing the token
+    and approve only the user's matching browser-device request.
 11. Run `profiles --probe` (actual short inference), `memory-smoke`, `acceptance`, and the real client
     checks in references/acceptance.md. Confirm new-conversation memory, plan→dev
-    execution, a sample regression test, and Buzz response. Config/CLI tests are
+    execution, a sample regression test, and an actual Control UI response. Config/CLI tests are
     not proof of actual chat integration. Report blockers precisely.
 12. Back up, export offsite, restore into staging and verify. Do not call staged
     restore a completed live disaster-recovery test.
@@ -70,7 +72,7 @@ No Oracle credentials available here means deliver code/plan only, not a claim o
 remote execution. Mark tested evidence separately from source review/assumptions.
 
 ## Profile ownership
-- operations / openclaw / 18789 / .openclaw-operations: user-facing Buzz, GBrain,
+- operations / openclaw / 18789 / .openclaw-operations: user-facing Control UI, GBrain,
   gstack, selected skills, final approval/review/dispatch. Not administrative root.
 - planning / clawplan / 19789 / .openclaw-planning: ECC planner+architect references;
   OpenClaw read-only tools. Returns a plan, not code mutations.
@@ -107,7 +109,7 @@ resources/data/access. Never terminate an OCI VM as an implicit cleanup action.
 ## Output
 Return phase receipts and local private paths, URLs (without tokens), and exact
 observed status. Distinguish OCI_CREATED, RUNTIME_INSTALLED, AUTH_PROBED,
-DELEGATION_TESTED, MEMORY_CLI_TESTED, MEMORY_CHAT_TESTED, BUZZ_CHAT_TESTED.
+DELEGATION_TESTED, MEMORY_CLI_TESTED, MEMORY_CHAT_TESTED, OPENCLAW_UI_TESTED.
 No passwords, model tokens, owner private keys or raw OAuth callback contents.
 
 ## v0.4 review and repository publishing

@@ -1,6 +1,6 @@
 """Operator-triggered live delegation acceptance. This consumes model usage.
 No user files, production services or external publication are touched. Receipts
-separate CLI, model/tool behavior and Buzz/new-conversation tests.
+separate CLI, model/tool behavior, HTTPS client behavior, or new-conversation tests.
 """
 import json,pathlib,uuid
 from evidence import exact_marker
@@ -21,5 +21,5 @@ def smoke():
         observed=r.get('state')=='COMPLETED' and exact_marker(r.get('response',{}),marker)
         results[name]={'task_id':task,'marker_roundtrip':'PASS' if observed else 'FAIL','worker_state':r.get('state'),'filesystem_policy_test':'NOT_TESTED'}
     report={'state':'DELEGATION_MARKERS_PASSED' if all(x['marker_roundtrip']=='PASS' for x in results.values()) else 'DELEGATION_INCOMPLETE',
-            'profiles':results,'native_buzz_roundtrip':'NOT_TESTED','planning_read_only_enforcement':'CONFIGURED_NOT_LIVE_ADVERSARIALLY_TESTED','development_filesystem':'NOT_TESTED'}
+            'profiles':results,'openclaw_https_client':'NOT_TESTED','planning_read_only_enforcement':'CONFIGURED_NOT_LIVE_ADVERSARIALLY_TESTED','development_filesystem':'NOT_TESTED'}
     atom_json(STATE/'acceptance.json',report);return report

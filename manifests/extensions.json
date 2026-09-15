@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "profile": "personal-openclaw-buzz",
+  "profile": "personal-openclaw",
   "sources": [
     {"id":"prompt-engineering","repo":"min9lin9/prompt-engineering-skills","ref":"master","required":true,"skills":["skills/prompt-engineering-guide","skills/prompt-variation-guide"],"runtime":"none"},
     {"id":"gstack","repo":"garrytan/gstack","ref":"main","required":true,"skills":["openclaw/skills/gstack-openclaw-office-hours","openclaw/skills/gstack-openclaw-ceo-review","openclaw/skills/gstack-openclaw-investigate","openclaw/skills/gstack-openclaw-retro"],"runtime":"native-methodology","advanced":"Full Codex-host install is a separate verified capability, not a native OpenClaw port."},
