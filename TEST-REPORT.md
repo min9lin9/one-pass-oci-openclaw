@@ -1,3 +1,41 @@
+# Nondeveloper onboarding rehearsal — 2026-09-15
+
+Scope: documentation and agent execution instructions only; no runtime Python,
+provisioning, auth or live WineyCellar configuration was changed.
+Independent agents were instructed to use only isolated repository snapshots,
+not prior conversation, personal configuration or credentials.
+The host already had Python 3.12.12, Git and OpenSSH; this was not an empty-OS test.
+
+| Scenario | Observed result | Evidence boundary |
+|---|---|---|
+| Before: absent settings file | Actual exit2, `INPUT_REQUIRED`, route `unknown`, only `secrets_file` requested | Real local preflight |
+| Revised: agent prepares template | Exact template copy, directory0700/file0600; actual exit2, package `VALID`, route `new_oci_host`, eight missing settings identified | Real isolated local preparation/preflight; no credentials invented |
+| Only OCI signup, no domain | Agent gives a concrete provider screen, one human action and return phrase; maps OCI preview fields itself | Dialogue rehearsal, not account/console execution |
+| Login completed | Agent recovers paths/login type, reconciles model policy and uses pending checks instead of setup; identifies token/device and backup handoffs | Dialogue rehearsal, not actual OAuth/browser/restore |
+| Unknown domain ownership | Initial revised reply prematurely advised purchase; parent review caught it, guidance was corrected, a new independent reply asked ownership first | Dialogue rehearsal; both existing/no-domain branches then passed |
+
+The unknown-ownership correction is not hidden behind the earlier agent's overall
+PASS verdict. Missing configuration does not establish absence of a user's resource.
+The final tested first question asks whether a domain is already owned; purchase
+is proposed only after an explicit no.
+
+`python3 scripts/check.py` passed **215 tests** after the onboarding edits.
+Internal Markdown link targets exist and both new Bash examples pass `bash -n`;
+neither device command was executed against a server. Markdown LSP is unavailable,
+so no Markdown diagnostic pass is claimed. Package hashes were regenerated for
+reviewed documentation, and the before/after snapshots remained manifest-valid.
+The QA environment lacked an `apply_patch` executable; the QA agent copied only
+the permitted blank template and reported that tooling limitation.
+
+No new full OCI launch, provider-console operation, source installation, OAuth,
+model response, browser pairing, backup export or restore was run in this rehearsal.
+No human novice usability study or guarantee for every agent/tool environment is
+claimed. Browser and secret-transfer capability remain actual completion
+requirements; missing capability must be reported rather than bypassed.
+These findings validate a more actionable staged workflow, not an unattended
+one-command deployment product. See `references/first-install.md` and
+`references/resume-install.md`.
+
 # Public mode and bootstrap — 2026-09-15
 
 `python3 scripts/check.py` passed **215 tests** on macOS ARM64. Changed Python

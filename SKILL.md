@@ -5,6 +5,8 @@ description: Install OpenClaw from this repository URL on OCI or an existing sup
 # One-pass OCI OpenClaw — local Codex deployment controller v0.4-beta
 
 Read REVIEW.md and SECURITY.md first. Then read README.md, references/profiles-and-auth.md and references/oci-provisioning.md.
+For a fresh user, follow references/first-install.md for concrete provider
+handoffs and references/resume-install.md for post-install continuation.
 This is a LOCAL Codex skill; the target does not need OpenClaw or even an existing
 VM. The default new host is Oracle A1 2 OCPU/12GB, Ubuntu24.04ARM, with
 native OpenClaw, authenticated public HTTPS at openclaw.<domain>, Cloudflare DNS-01,
@@ -22,10 +24,15 @@ available inputs; ask only for missing values or a real human login/approval.
 Do not silently switch a selected mode or claim absent cloud/model prerequisites.
 
 ## Authority and secret handling
-The user supplies ~/.config/oracle-ai-stack/secrets.env. Do NOT cat it into chat,
+Prepare ~/.config/oracle-ai-stack/secrets.env from the template when absent;
+preserve existing files. The agent writes known configuration, while the user
+enters secrets privately or authorizes their existing vault/file source. Do not
+make the novice translate OCIDs or fill an unexplained variable checklist.
+Do NOT cat the file into chat,
 log it, source it, commit it, send it to research tools or ask for plaintext keys.
 Use the provided Python parser and stdin transports. A missing value can be
-requested by variable name and local file path. Ask only for genuinely missing
+identified internally by variable name and local file path. Give the user the
+current provider screen, one action and the expected reply instead. Ask only for genuinely missing
 non-discoverable values or mandatory login/owner approval. Account creation,
 API-key registration, domain purchase, optional Tailscale membership and model
 subscription cannot be invented from cloud IPs.
@@ -46,6 +53,9 @@ Never create boilerplate review notes just to clear that state.
 HOST_TRUST_REQUIRED requires an independently verified fingerprint, not TOFU.
 INSTALLED_PENDING_ACCEPTANCE means continue the auth/client checks below; it
 does not mean return early and leave an otherwise satisfiable setup unfinished.
+Do not rerun bootstrap --apply, setup or repair merely to resume after login.
+Record the active profile/login type and evidence paths in a private continuation
+note before each human handoff; use references/resume-install.md when resuming.
 Report the structured `star` outcome separately.
 
 1. Inspect local tools and load secret presence without printing values. Python3.11+,

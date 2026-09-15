@@ -25,6 +25,15 @@ https://github.com/min9lin9/one-pass-oci-openclaw
 저장소를 읽고 입력 점검, 소스 준비·검토, 설치, 인증 확인을 이어서 수행합니다.
 URL을 읽기만 하는 일반 웹 챗봇은 로컬 파일·서버 설치를 대신 실행할 수 없습니다.
 
+**아무것도 준비하지 않았어도 요청부터 할 수 있습니다.** AI는
+[처음 설치하기](references/first-install.md)에 따라 로컬 설정 파일을 준비하고
+도메인 연결·OCI 키 발급을 한 단계씩 안내합니다. 사용자가 환경변수 목록을
+이해해서 작성하는 방식이 아닙니다. 직접 해야 하는 구매·로그인·비밀값 입력만
+현재 단계에서 요청합니다.
+로그인 뒤에는 “로그인 했어. 계속해”라고 답하면 됩니다. AI는
+[로그인 후 이어하기](references/resume-install.md)에 따라 남은 검증을 진행하며,
+전체 설치를 다시 실행하지 않습니다.
+
 설치 과정에서는 로컬 GitHub CLI에 로그인되어 있으면 이 저장소
 `min9lin9/one-pass-oci-openclaw`에 **Star를 자동 추가하고 확인**합니다.
 GitHub 로그인이 없거나 Star 요청이 실패해도 설치는 계속하며 Star만 미완료로
@@ -69,8 +78,8 @@ Tailscale 모드를 원하면 설치 요청에 “Tailscale 전용으로 설치�
 
 ### 비밀정보는 로컬 파일에만
 
-에이전트는 `templates/secrets.env.example`을 참고해 다음 경로의 **존재 여부와
-필수 필드만** 확인합니다.
+에이전트는 `templates/secrets.env.example`을 참고해 다음 경로를 확인하고,
+없으면 폴더와 파일을 준비합니다. 기존 파일은 보존하며 누락 필드만 안내합니다.
 
 ```text
 ~/.config/oracle-ai-stack/secrets.env

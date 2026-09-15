@@ -15,7 +15,7 @@
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "c42fa7e8f82617e7c0cd77d35367b9cb758a6a8b639d95cba82b256c625cade9",
+      "sha256": "b16b4034cc81ff21705b64e014b2e58a3bb5053b13e99745817889c304a318b3",
       "executable": false
     },
     "LICENSE": {
@@ -23,7 +23,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "268683b4fe4e446c27d9d90a17dea0df983ae4c6653ce38fff218a0a650ceb13",
+      "sha256": "8850dba8f64f4ad428520e7c8907b2b80bcd299e89e11ec0dcefe8d5373af957",
       "executable": false
     },
     "REVIEW.md": {
@@ -35,11 +35,11 @@
       "executable": false
     },
     "SKILL.md": {
-      "sha256": "4b64e4bc5a80e24c8323efc49b354f52870546edefce1ba1ecdfa22c84b78d6d",
+      "sha256": "6198bafc3ec46c4c7b1064a55cdcb128023628f9bbc0636d4226916ed63bb7ce",
       "executable": false
     },
     "TEST-REPORT.md": {
-      "sha256": "2ade1e34eea65837c55cc70641c3e66dba8fbc4f9dca5bd35999318dd17faa72",
+      "sha256": "b1aab32ec6b0c7bc45bf47b0cf80d2e461f33a6a15392e2d6cb9c0c1ca0a8119",
       "executable": false
     },
     "THIRD_PARTY_NOTICES.md": {
@@ -102,6 +102,10 @@
       "sha256": "b542f6f9275ef2425c9cfeadbd6e5335b115168f450dfe7643cc5b2153c6dcdf",
       "executable": false
     },
+    "references/first-install.md": {
+      "sha256": "c13386290c4844afcecd4b14b175447a65358410553f43988a0b85d201abea6f",
+      "executable": false
+    },
     "references/gstack.md": {
       "sha256": "6710a5413354ebd378749cb1f95940bde3035db63ef16206396a13edd154d228",
       "executable": false
@@ -128,6 +132,10 @@
     },
     "references/public-installation.md": {
       "sha256": "704341fdb647f959ce028c586300c44e35f68125290382a08b8fae50d5d043c7",
+      "executable": false
+    },
+    "references/resume-install.md": {
+      "sha256": "a34a889686eab25a84c9341bc3faaf526ba7e51698aa0b195fa02a0880a09674",
       "executable": false
     },
     "references/source-review.md": {

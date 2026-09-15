@@ -1,3 +1,14 @@
+# Nondeveloper onboarding and continuation — 2026-09-15
+
+Make the agent prepare missing local configuration and guide one human action
+at a time, using linked official domain, Cloudflare token and OCI signing-key
+instructions. Map the OCI console preview instead of asking a novice to translate
+variables. Add a private continuation-note procedure, explicit post-login commands,
+native browser-device approval and distinct backup/export/restore evidence.
+Do not rerun setup to resume acceptance. Document that model probes can configure
+models and require preserving existing choices. These are agent instructions,
+not a new unattended installer, browser driver or live deployment verification.
+
 # Public access and agent-driven bootstrap — 2026-09-15
 
 Default to authenticated public HTTPS; make Tailscale explicit and optional.
