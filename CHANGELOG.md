@@ -1,3 +1,16 @@
+# Unreleased: clean Gateway restart and PostgreSQL memory — 2026-09-16
+
+Use Restart=always for Gateway units so a normal plugin-triggered supervisor
+restart does not leave the service stopped. Preserve explicit maintenance stops.
+Add the pinned private PostgreSQL+pgvector template and include its data volume,
+secrets and Gateway drop-ins in backups; retain volumes during managed shutdown.
+Preserve existing PostgreSQL memory configuration at the actual
+GBRAIN_HOME/.gbrain/config.json path. Bound memory output during capture, allow
+30 seconds of graceful termination, and disable automatic PGlite WAL repair.
+The approved live migration used full SQL export and relation fingerprints,
+not the incomplete upstream migration command. See references/gbrain-postgres.md.
+These changes have not been committed or published as a new GitHub release.
+
 # Nondeveloper onboarding and continuation — 2026-09-15
 
 Make the agent prepare missing local configuration and guide one human action

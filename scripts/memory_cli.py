@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Operations-only, serialized keyless GBrain CLI. No daemon or cloud key."""
 from __future__ import annotations
-import argparse, fcntl, json, os, pathlib, pwd, re, subprocess, sys
+import argparse, fcntl, json, os, pathlib, pwd, re, sys
+from process_guard import ProcessBudgetError, run_bounded
 from stacklib import StackError
 from profile_spec import get_profile
 
@@ -25,14 +26,17 @@ def main():
     op=get_profile('operations')
     if os.getuid()!=pwd.getpwnam(op.user).pw_uid: raise StackError('Only the operations user owns this memory')
     runtime=json.loads((op.home/'.local/state/oracle-ai-stack/gbrain-runtime.json').read_text())
-    env={'HOME':str(op.home),'USER':op.user,'LANG':'C.UTF-8','PATH':str(pathlib.Path(runtime['bun']).parent)+':/usr/bin:/bin','GBRAIN_HOME':runtime['home'],'DO_NOT_TRACK':'1'}
+    env={'HOME':str(op.home),'USER':op.user,'LANG':'C.UTF-8','PATH':str(pathlib.Path(runtime['bun']).parent)+':/usr/bin:/bin','GBRAIN_HOME':runtime['home'],'DO_NOT_TRACK':'1','GBRAIN_PGLITE_WAL_REPAIR':'off'}
     lock=op.home/'.local/state/oracle-ai-stack/gbrain-access.lock'
     with lock.open('a') as f:
         try:fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError as e:raise StackError('Memory store busy; no second PGLite owner started') from e
-        result=subprocess.run(command(a,runtime),env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90)
+        try:
+            result=run_bounded(command(a,runtime),env=env,timeout=90,
+                               max_output=262144,termination_grace=30)
+        except ProcessBudgetError as exc:
+            raise StackError('Memory operation exceeded its budget; inspect completion before retrying') from exc
     if result.returncode:raise StackError('GBrain call failed; inspect private diagnostics')
-    if len(result.stdout)>262144:raise StackError('GBrain result too large; narrow the entity')
     sys.stdout.buffer.write(result.stdout)
 if __name__=='__main__':
     try:main()

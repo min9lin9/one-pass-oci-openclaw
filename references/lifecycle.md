@@ -7,6 +7,13 @@ user content. Re-running setup may stop on an upstream/missing dependency; repor
 that phase instead of ignoring its exit code. Do not renew one-use Tailscale keys
 when the existing Tailnet session is already running.
 
+## Gateway restart policy
+Generated gateway units use `Restart=always`. Plugin installation can request
+a SIGUSR1 supervisor restart and exit successfully; `Restart=on-failure` left
+operations stopped after that clean exit. The corrected policy was verified
+with a new healthy PID after SIGUSR1. An explicit `systemctl stop` still stops
+the service for maintenance.
+
 ## v0.1/v0.2 migration is not zero base
 v0.1 used /home/ubuntu and /opt/buzz, potentially sudo/docker access, a different
 Compose project, and incomplete backups. v0.3 stops on old or unmanaged deployments. v0.2 used one OpenClaw identity; its state must not be copied into all three profiles.
@@ -37,12 +44,15 @@ execute this runbook; the helper is NOT an unattended upgrader.
 ## Encrypted backup
 `stack.py backup` refuses active delegated tasks, pauses both worker socket listeners,
 locks worker execution, stops all three managed Gateway services and running
-proxy containers, snapshots state with restic, and resumes the original
+proxy and dedicated GBrain PostgreSQL containers, snapshots state with restic, and resumes the original
 running set in finally. Manually started writers outside these managed services
-must also be stopped by the operator. It includes proxy volumes.
-All three profile homes (including independent auth stores and the operations
-GBrain PGLite database), identities, config, source/runtime files, units and sockets
-are included. A Git clone is not a GBrain database backup.
+must also be stopped by the operator. It includes proxy and owned PostgreSQL volumes.
+All three profile homes (including independent auth stores and retained PGlite),
+the dedicated `oracle-gbrain-data` volume, identities, config, source/runtime
+files, units, drop-ins and sockets are included. A PostgreSQL GBrain target is
+covered only by the reviewed loopback 5434 database and managed volume; other
+targets require a separate backup strategy and are refused, not silently claimed.
+See `references/gbrain-postgres.md`. A Git clone is not a GBrain database backup.
 Do not claim a hot pg_dump alone preserves object/Git consistency.
 
 The active backup scope no longer requires or includes retired Buzz database,
@@ -84,7 +94,7 @@ only live copy. Say which stage is pending; do not say recovery is complete.
 ## Uninstall
 `stack.py uninstall --confirm uninstall:<domain>` refuses active worker jobs, disables
 the three managed Gateway services and worker sockets, and takes down
-only managed containers, without `docker compose down -v`. It leaves data, backups,
+the managed proxy and GBrain database containers, without `docker compose down -v`. It leaves data, backups,
 users, credentials, DNS, SSH and Tailscale. Permanent purge, DNS removal and token
 revocation are separate explicit destructive actions. Never disable the management
 path during a remote uninstall.

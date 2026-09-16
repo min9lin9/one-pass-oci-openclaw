@@ -1,5 +1,5 @@
 """Offline contracts/mocked cloud behavior. Not real OCI or agent acceptance."""
-import base64, io, json, pathlib, sys, tempfile, time, unittest, uuid
+import base64, configparser, io, json, pathlib, sys, tempfile, time, unittest, uuid
 from types import SimpleNamespace as NS
 from unittest.mock import Mock, patch
 ROOT=pathlib.Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'scripts'))
@@ -154,6 +154,15 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(c['models']['providers']['openai']['agentRuntime']['id'],'openclaw')
     def test_private_gateway_binding(self):
         for p in ps.PROFILES.values():self.assertEqual(ps.config_for(p,{'DOMAIN':'example.com'},'t')['gateway']['bind'],'loopback')
+    def test_clean_gateway_exit_is_restarted_by_supervisor(self):
+        # Given: every profile supports clean supervisor-driven Gateway restarts.
+        for name,p in ps.PROFILES.items():
+            with self.subTest(profile=name):
+                # When: the actual systemd unit is generated.
+                unit=configparser.ConfigParser(interpolation=None,strict=False)
+                unit.read_string(ps.gateway_unit(p))
+                # Then: exit 0 and crashes both trigger automatic recovery.
+                self.assertEqual(unit['Service']['Restart'],'always')
     def test_no_tokens_in_units(self):
         for p in ps.PROFILES.values():
             unit=ps.gateway_unit(p);self.assertIn('EnvironmentFile=-/etc/',unit);self.assertNotIn('OPENCODE_API_KEY=',unit)
@@ -179,7 +188,33 @@ class ProfileTests(unittest.TestCase):
     def test_gbrain_not_npm_or_paid_autoinit(self):
         text=(ROOT/'scripts/gbrain_install.py').read_text();self.assertIn("'--no-embedding'",text);self.assertNotIn("'npm','install','gbrain'",text)
     def test_three_profile_backup_scope(self):
-        text=(ROOT/'scripts/operations.py').read_text();self.assertIn('PROFILES.values()',text);self.assertIn('PGLite',text)
+        import operations
+        with tempfile.TemporaryDirectory() as td:
+            root=pathlib.Path(td).resolve();state=root/'state';state.mkdir()
+            (state/'managed.json').write_text('{"domain":"example.com"}')
+            profiles={}
+            for name in ('operations','planning','development'):
+                home=root/name;home.mkdir()
+                profiles[name]=NS(home=home,state=home/'.state',unit='oracle-openclaw-'+name+'.service')
+            real_exists=pathlib.Path.exists
+            def fixture_exists(path):
+                return path.is_relative_to(root) and real_exists(path)
+            with (
+                tempfile.TemporaryFile(mode='w+') as guard,
+                patch.object(operations,'STATE',state),
+                patch.object(operations,'PROFILES',profiles),
+                patch.object(operations,'initialize'),
+                patch.object(operations,'own_volumes',return_value={}),
+                patch.object(operations,'running_containers',return_value=[]),
+                patch.object(operations,'run',return_value=NS(returncode=0,stdout=b'')),
+                patch.object(operations,'restic',return_value=NS(
+                    returncode=0,stdout=b'{"message_type":"summary","snapshot_id":"abcdef12"}\n')) as restic,
+                patch.object(operations,'open',return_value=guard,create=True),
+                patch.object(pathlib.Path,'exists',autospec=True,side_effect=fixture_exists),
+            ):
+                operations.backup()
+            args=next(call.args for call in restic.call_args_list if call.args[0]=='backup')
+            self.assertTrue({str(root/name) for name in ('operations','planning','development')}.issubset(args))
 
 class BridgeTests(unittest.TestCase):
     def req(self,**kw):return dict({'task_id':str(uuid.uuid4()),'prompt':'Return a plan','action':'run'},**kw)

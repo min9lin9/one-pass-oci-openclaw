@@ -139,7 +139,7 @@ python3 scripts/install_skill.py
 | 개발 | `development` / Unix `clawdev` / 20789 / ECC TDD·리뷰 방법론 |
 | HTTPS | Docker 기반 Caddy, Cloudflare DNS-01 인증서 |
 | 보조 도구 | 제한된 공개 페이지 읽기, 문서·Mermaid·MCP 보조 도구 |
-| 복구 | restic 암호화 백업, 별도 위치 복원 검증 |
+| 복구 | restic 암호화 백업, 관리되는 GBrain PostgreSQL 볼륨 포함, 별도 위치 복원 검증 |
 
 Buzz는 설치·실행에 필요하지 않습니다. 과거 Buzz 데이터는 별도 삭제 요청
 없이 지우지 않습니다. 운영은 인프라 관리자가 아니며 OCI/SSH/DNS 관리 키,
@@ -149,6 +149,11 @@ Docker 소켓이나 무제한 sudo를 받지 않습니다.
 Unix 소켓 어댑터이며 OpenClaw 네이티브 cross-profile 기능으로 설명하지
 않습니다. GBrain/gstack은 운영 전용이고, 외부 MCP 서버는 자동 연결하지 않습니다.
 전체 gstack은 별도 하네스 인증과 실제 실행을 확인해야 합니다.
+
+현재 검증된 운영 서버의 GBrain은 전용 PostgreSQL로 전환했습니다.
+신규 설치 기본값은 PGlite이며, 기존 PostgreSQL 설정은 보존합니다.
+전환·데이터 보존·백업 범위는 [GBrain PostgreSQL 기록](references/gbrain-postgres.md)을
+참조합니다.
 
 ## 운영과 현재 한계
 
@@ -160,6 +165,8 @@ Unix 소켓 어댑터이며 OpenClaw 네이티브 cross-profile 기능으로 설
   경로까지이며 운영 데이터를 자동 덮어쓰지 않습니다.
 - 재시작·업데이트·삭제는 `references/lifecycle.md`를 따릅니다. 사용자 수정,
   기존 데이터, 불명확하게 끝난 작업을 임의로 덮어쓰거나 재실행하지 않습니다.
+- Gateway는 `Restart=always`를 사용해 플러그인 변경에 따른 정상 종료 후에도
+  다시 시작합니다. 명시적인 유지보수 정지는 그대로 존중합니다.
 
 근거: `TEST-REPORT.md`, `REVIEW.md`, `SECURITY.md`,
 `references/openclaw-only.md`, `references/source-review.md`.

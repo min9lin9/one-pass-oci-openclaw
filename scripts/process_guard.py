@@ -8,7 +8,7 @@ class ProcessBudgetError(RuntimeError):
     pass
 
 def run_bounded(args, *, input=None, cwd=None, env=None, timeout=900,
-                preexec_fn=None, max_output=8*1024*1024):
+                preexec_fn=None, max_output=8*1024*1024, termination_grace=2):
     buffers={}; proc=None
     with tempfile.TemporaryFile() as incoming, selectors.DefaultSelector() as selector:
         if input: incoming.write(input)
@@ -36,7 +36,7 @@ def run_bounded(args, *, input=None, cwd=None, env=None, timeout=900,
             # Kill the local group, including helpers which inherited output pipes.
             try: os.killpg(proc.pid,signal.SIGTERM)
             except ProcessLookupError: pass
-            try: proc.wait(timeout=2)
+            try: proc.wait(timeout=termination_grace)
             except subprocess.TimeoutExpired: pass
             try: os.killpg(proc.pid,signal.SIGKILL)
             except ProcessLookupError: pass

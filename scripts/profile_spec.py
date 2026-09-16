@@ -119,7 +119,7 @@ WorkingDirectory={p.workspace}
 {env}
 EnvironmentFile=-{p.env_file}
 ExecStart={p.binary} --profile {p.name} gateway run --port {p.port}
-Restart=on-failure
+Restart=always
 RestartSec=5
 UMask=0077
 PrivateTmp=true

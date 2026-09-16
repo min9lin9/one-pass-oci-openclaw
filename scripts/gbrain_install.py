@@ -29,17 +29,18 @@ def install(stage,lock):
     as_user(p,['/usr/bin/python3','-c','import pathlib,sys;pathlib.Path(sys.argv[1]).mkdir(parents=True,exist_ok=True,mode=0o700)',home])
     env['GBRAIN_HOME']=str(home)
     cli=[bun,dest/'src/cli.ts']
-    if not (home/'config.json').exists():as_user(p,cli+['init','--pglite','--no-embedding'],env=env,timeout=600)
-    config=json.loads((home/'config.json').read_text())
-    if config.get('engine')!='pglite' or config.get('embedding_disabled') is not True:
-        raise StackError('Existing GBrain is not memory-only PGLite; preserve it and review an explicit migration')
+    config_path=home/'.gbrain/config.json'
+    if not config_path.exists():as_user(p,cli+['init','--pglite','--no-embedding'],env=env,timeout=600)
+    config=json.loads(config_path.read_text())
+    if config.get('engine') not in ('pglite','postgres') or config.get('embedding_disabled') is not True:
+        raise StackError('Existing GBrain is not a supported memory-only engine; preserve it and review an explicit migration')
     db=config.get('database_path')
     if db and not pathlib.Path(db).expanduser().resolve().is_relative_to(p.home.resolve()):
         raise StackError('GBrain DB lies outside backed-up operations home; review its storage mapping')
     as_user(p,cli+['engine','status','--json'],env=env,timeout=90)
-    runtime={'bun':str(bun),'entry':str(dest/'src/cli.ts'),'home':str(home),'mode':'keyless-memory-only','source_commit':entry['commit']}
+    runtime={'bun':str(bun),'entry':str(dest/'src/cli.ts'),'home':str(home),'mode':'keyless-memory-only','engine':config['engine'],'source_commit':entry['commit']}
     runtimefile=p.home/'.local/state/oracle-ai-stack/gbrain-runtime.json';atom_json(runtimefile,runtime);own(runtimefile.parent,p.user)
-    result={'state':'GBRAIN_RUNTIME_INSTALLED','profile':'operations','mode':'keyless-memory-only','database':str(home),'native_chat_roundtrip':'NOT_TESTED','source_commit':entry['commit']}
+    result={'state':'GBRAIN_RUNTIME_INSTALLED','profile':'operations','mode':'keyless-memory-only','engine':config['engine'],'database':str(home),'native_chat_roundtrip':'NOT_TESTED','source_commit':entry['commit']}
     atom_json(receipt,result);return result
 
 def smoke():

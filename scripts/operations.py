@@ -5,6 +5,7 @@ the explicit operator procedure for a reviewed in-place restore from that stage.
 """
 from __future__ import annotations
 import fcntl, json, os, pathlib, re, secrets, sys
+from urllib.parse import urlparse
 from stacklib import StackError, atom_json, run
 from profile_spec import PROFILES
 from remote import BASE,STATE,ETC,write
@@ -26,13 +27,14 @@ def initialize():
 
 
 def own_volumes():
-    files=[BASE/'compose.proxy.json']; names=set()
-    for file in files:
+    files=[(BASE/'compose.proxy.json','oracle-proxy-'),
+           (BASE/'compose.gbrain.json','oracle-gbrain-')]; names=set()
+    for file,prefix in files:
         if file.exists():
             for key,val in json.loads(file.read_text()).get('volumes',{}).items():
                 name=val.get('name',key)
-                if not name.startswith('oracle-proxy-'):
-                    raise StackError('Unmanaged volume in proxy manifest')
+                if not name.startswith(prefix):
+                    raise StackError('Unmanaged volume in managed service manifest')
                 names.add(name)
     mounts={}
     for name in sorted(names):
@@ -45,7 +47,7 @@ def own_volumes():
 
 def running_containers():
     values=[]
-    for project in ('oracle-proxy',):
+    for project in ('oracle-proxy','oracle-gbrain'):
         text=run(['docker','ps','-q','--filter','label=com.docker.compose.project='+project]).stdout.decode()
         values.extend(text.split())
     if any(not re.fullmatch('[0-9a-f]{12,64}',v) for v in values): raise StackError('Unexpected container ID')
@@ -54,18 +56,29 @@ def running_containers():
 
 def backup():
     initialize(); mounts=own_volumes()
+    brain_path=PROFILES['operations'].state/'gbrain/.gbrain/config.json'
+    brain=json.loads(brain_path.read_text()) if brain_path.exists() else {}
+    if brain.get('engine')=='postgres':
+        target=urlparse(brain.get('database_url',''))
+        if not (target.scheme in ('postgres','postgresql') and
+                target.hostname in ('127.0.0.1','localhost') and target.port==5434 and
+                target.path=='/gbrain' and not target.query and not target.fragment and
+                'oracle-gbrain-data' in mounts):
+            raise StackError('PostgreSQL target has no reviewed managed-volume backup; provide a separate database backup strategy')
     old=running_containers()
     units=[p.unit for p in PROFILES.values()]+['oracle-worker-planning.socket','oracle-worker-development.socket']
     active=[u for u in units if run(['systemctl','is-active','--quiet',u],check=False).returncode==0]
     inflight=run(['systemctl','list-units','--type=service','--state=active','--no-legend','--plain','oracle-worker-*@*.service'],check=False).stdout.decode().strip()
     if inflight:raise StackError('Worker tasks are active; finish or explicitly abort them before backup')
     metadata={'schema':3,'managed':json.loads((STATE/'managed.json').read_text()),'volume_mounts':mounts,
-              'consistency':'all managed OpenClaw profiles and proxy writers stopped before file backup',
+              'consistency':'all managed OpenClaw profiles, proxy and dedicated GBrain PostgreSQL writers stopped before file backup',
+              'gbrain_engine':brain.get('engine','not_configured'),
               'offsite_copy':'not provided by local repository alone',
               'retained_legacy_data':'configuration/source files under managed paths are included if present; legacy container volumes are not required or stopped'}
     atom_json(STATE/'backup-inventory.json',metadata)
     paths=[*[str(p.home) for p in PROFILES.values()],str(BASE),str(ETC),str(STATE),*mounts.values(),
            *[ '/etc/systemd/system/'+p.unit for p in PROFILES.values() ],
+           *[ '/etc/systemd/system/'+p.unit+'.d' for p in PROFILES.values() ],
            '/etc/systemd/system/oracle-worker-planning.socket','/etc/systemd/system/oracle-worker-development.socket',
            '/etc/systemd/system/oracle-worker-planning@.service','/etc/systemd/system/oracle-worker-development@.service',
            '/etc/systemd/system/oracle-agents.slice','/etc/tmpfiles.d/oracle-ai-stack.conf',
@@ -91,7 +104,7 @@ def backup():
         if not summary or not summary.get('snapshot_id'): raise StackError('restic did not report a snapshot ID')
         restic('check')
         return {'snapshot':summary['snapshot_id'],'repository':str(REPO),'encrypted':True,
-                'scope':'Three OpenClaw profile homes including GBrain PGLite, proxy TLS volumes, managed source/configuration/state, units and reader policy; retained legacy files inside managed paths are included, but legacy container volumes are not',
+                'scope':'Three OpenClaw profile homes including retained PGlite, dedicated GBrain PostgreSQL and proxy TLS volumes, managed source/configuration/state, units and drop-ins, reader policy; legacy container volumes are not included',
                 'offsite':'PENDING export to local PC or a separate backup target'}
     finally:
         errors=[]
@@ -137,8 +150,9 @@ def uninstall(confirmation):
     if inflight:raise StackError('Worker tasks still active; no silent termination')
     for unit in ('oracle-worker-planning.socket','oracle-worker-development.socket',*[p.unit for p in PROFILES.values()]):
         run(['systemctl','disable','--now',unit])
-    if (BASE/'compose.proxy.json').exists():
-        run(['docker','compose','-f',str(BASE/'compose.proxy.json'),'down'])  # Deliberately no -v.
+    for filename in ('compose.proxy.json','compose.gbrain.json'):
+        if (BASE/filename).exists():
+            run(['docker','compose','-f',str(BASE/filename),'down'])  # Deliberately no -v.
     # Leave Tailscale, SSH, DNS, firewall, users, all data and restic intact.
     return {'state':'SERVICES_STOPPED_DATA_RETAINED','tailscale':'UNCHANGED','volumes':'RETAINED','oci_instance':'RETAINED_NOT_TERMINATED',
             'credentials':'RETAINED; rotate/revoke explicitly if decommissioning permanently'}

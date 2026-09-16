@@ -1,3 +1,44 @@
+# Gateway restart and PostgreSQL cutover — 2026-09-16
+
+`TMPDIR=/private/tmp python3 scripts/check.py` passed **223 tests** on macOS ARM64.
+Changed production Python diagnostics were clean. Failing-first cases covered
+normal-exit restart policy, Gateway drop-in backup coverage, PostgreSQL service/
+volume coverage, unhandled database refusal, actual GBrain configuration location,
+PostgreSQL preservation, and graceful bounded memory execution. A real child
+handled SIGTERM and wrote its completion marker before cleanup; no timing sleep
+was used in that new signal test.
+
+The actual incident was a plugin-source change followed by SIGUSR1, clean exit0
+and an inactive operations unit under Restart=on-failure. After the fix, a new
+healthy PID appeared automatically under the same SIGUSR1 trigger. Existing
+unit hardening, authentication, public HTTPS and other workloads were retained.
+
+The pre-cutover encrypted snapshot62c03d74a08bac7a7c5ad3b09ad25a906ae405040bb08e696c16de70663f54a1
+was exported to Mac, all100 packs checked, and restored to isolated staging.
+The restored PGlite opened successfully. Initial full SQL import into native
+PostgreSQL matched68 table fingerprints and43 sequence states, including3
+withdrawal tombstones. Native CLI remember/fresh-process recall/forget passed.
+Live-source freshness and target fingerprints were checked again before cutover.
+Original PGlite and configuration rollback copies remain.
+
+After cutover, a real OpenClaw Flash turn invoked the deployed memory wrapper
+and inserted fact5. A separate fresh conversation, given only the entity, invoked
+recall and returned the exact synthetic marker. Tool transcripts, nonzero model
+usage and the PostgreSQL row were checked; the resulting browser screen was
+viewed. Only the owned fixture row and input file were removed.
+`degraded_dedup:true` remains the documented no-embedding-provider limitation;
+this test does not claim semantic duplicate detection or automatic supersession.
+
+Three requested `devin/swe-2-max` lanes reviewed restart/memory, PostgreSQL/backup,
+and documentation. The managed-shutdown omission was fixed with a regression;
+the WAL-disable environment contract was confirmed at pinned upstream source.
+Post-cutover snapshot440bcb0ffd6b57b212f81e59542ca58c0279041c769c532cef0536a0fca17788
+was exported to Mac and all102 packs verified. Its physical PostgreSQL files were
+restored to staging and booted with the same pinned image in a separate container
+with network none and no published port. All111 relation fingerprints matched the
+baseline captured during the backup maintenance window. The disposable container
+was stopped/removed. No host reboot or live-data restore occurred.
+
 # Nondeveloper onboarding rehearsal — 2026-09-15
 
 Scope: documentation and agent execution instructions only; no runtime Python,

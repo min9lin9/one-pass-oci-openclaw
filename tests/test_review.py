@@ -79,6 +79,31 @@ class EvidenceTests(unittest.TestCase):
             self.assertIn('NOT_FULL_TASK_E2E',evidence.delegation_receipt(p))
 
 class ProcessTests(unittest.TestCase):
+    def test_budget_cleanup_allows_configured_graceful_exit(self):
+        import process_guard
+        with tempfile.TemporaryDirectory() as td:
+            marker=pathlib.Path(td)/'closed'
+            script=(
+                "import pathlib,signal,sys\n"
+                "def close(signum,frame):\n"
+                f" pathlib.Path({str(marker)!r}).write_text('closed')\n"
+                " sys.exit(0)\n"
+                "signal.signal(signal.SIGTERM,close)\n"
+                "print('x'*2048,flush=True)\n"
+                "signal.pause()\n"
+            )
+            real_popen=subprocess.Popen;processes=[]
+            def launch(*args,**kwargs):
+                process=real_popen(*args,**kwargs)
+                process.wait=Mock(wraps=process.wait);processes.append(process)
+                return process
+            with patch.object(process_guard.subprocess,'Popen',side_effect=launch):
+                with self.assertRaises(ProcessBudgetError):
+                    run_bounded([sys.executable,'-c',script],max_output=32,
+                                timeout=5,termination_grace=30)
+            self.assertEqual(marker.read_text(),'closed')
+            processes[0].wait.assert_any_call(timeout=30)
+
     def test_output_capture(self):
         r=run_bounded([sys.executable,'-c','import sys;print(sys.stdin.read())'],input=b'hello',timeout=3)
         self.assertEqual(r.stdout,b'hello\n');self.assertEqual(r.returncode,0)
@@ -196,6 +221,33 @@ class DistributionTests(unittest.TestCase):
         self.assertNotIn('shutil.copytree(src,dest)',source)
 
 class BackupRecoveryTests(unittest.TestCase):
+    def test_backup_includes_managed_gateway_dropin_directories(self):
+        # Given: managed gateways have service overrides outside their base units.
+        with tempfile.TemporaryDirectory() as td:
+            state=pathlib.Path(td).resolve()
+            (state/'managed.json').write_text('{"domain":"example.com"}')
+            expected={'/etc/systemd/system/'+p.unit+'.d' for p in operations.PROFILES.values()}
+            real_exists=pathlib.Path.exists
+            def fixture_exists(path):
+                return str(path) in expected or (path.is_relative_to(state) and real_exists(path))
+            with (
+                tempfile.TemporaryFile(mode='w+') as guard,
+                patch.object(operations,'STATE',state),
+                patch.object(operations,'initialize'),
+                patch.object(operations,'own_volumes',return_value={}),
+                patch.object(operations,'running_containers',return_value=[]),
+                patch.object(operations,'run',return_value=NS(returncode=0,stdout=b'')),
+                patch.object(operations,'restic',return_value=NS(
+                    returncode=0,stdout=b'{"message_type":"summary","snapshot_id":"abcdef12"}\n')) as restic,
+                patch.object(operations,'open',return_value=guard,create=True),
+                patch.object(pathlib.Path,'exists',autospec=True,side_effect=fixture_exists),
+            ):
+                # When: a consistent backup is requested.
+                operations.backup()
+            # Then: restoring it can recover the effective restart policy.
+            backup_args=next(call.args for call in restic.call_args_list if call.args[0]=='backup')
+            self.assertTrue(expected.issubset(backup_args),expected-set(backup_args))
+
     def test_backup_volume_inventory_requires_only_proxy_volumes(self):
         with tempfile.TemporaryDirectory() as td:
             base=pathlib.Path(td)
@@ -209,16 +261,34 @@ class BackupRecoveryTests(unittest.TestCase):
                 mounts=operations.own_volumes()
             self.assertEqual(set(mounts),{'oracle-proxy-data','oracle-proxy-config'})
 
-    def test_container_inventory_is_limited_to_proxy_project(self):
-        with patch.object(operations,'run',return_value=NS(returncode=0,stdout=b'abcdef123456\n')) as run:
-            self.assertEqual(operations.running_containers(),['abcdef123456'])
-        run.assert_called_once_with(['docker','ps','-q','--filter','label=com.docker.compose.project=oracle-proxy'])
+    def test_container_inventory_excludes_retired_buzz_project(self):
+        outputs={'label=com.docker.compose.project=oracle-proxy':b'abcdef123456\n',
+                 'label=com.docker.compose.project=oracle-gbrain':b'fedcba654321\n'}
+        def listing(args,**kwargs):
+            return NS(returncode=0,stdout=outputs[args[-1]])
+        with patch.object(operations,'run',side_effect=listing) as run:
+            self.assertEqual(operations.running_containers(),['abcdef123456','fedcba654321'])
+        self.assertEqual([call.args[0][-1] for call in run.call_args_list],list(outputs))
 
-    def test_uninstall_stops_only_owned_openclaw_and_proxy_services(self):
+    def test_backup_includes_dedicated_gbrain_database_volume(self):
+        with tempfile.TemporaryDirectory() as td:
+            base=pathlib.Path(td).resolve()
+            (base/'compose.gbrain.json').write_text(json.dumps(
+                {'volumes':{'data':{'name':'oracle-gbrain-data'}}}))
+            mount=base/'oracle-gbrain-data/_data';mount.mkdir(parents=True)
+            row=[{'Mountpoint':str(mount)}]
+            with patch.object(operations,'BASE',base),patch.object(operations,'run',
+                    return_value=NS(returncode=0,stdout=json.dumps(row).encode())):
+                mounts=operations.own_volumes()
+            self.assertEqual(mounts,{'oracle-gbrain-data':str(mount)})
+
+    def test_uninstall_stops_owned_services_and_retains_database_volumes(self):
         with tempfile.TemporaryDirectory() as td:
             root=pathlib.Path(td);state=root/'state';base=root/'base';state.mkdir();base.mkdir()
             (state/'managed.json').write_text('{"domain":"example.com"}')
             (base/'compose.proxy.json').write_text('{}')
+            (base/'compose.gbrain.json').write_text('{}')
+            (base/'compose.buzz.private.json').write_text('{}')
             calls=[]
             def command(args,**kwargs):
                 calls.append(args)
@@ -227,7 +297,10 @@ class BackupRecoveryTests(unittest.TestCase):
                  patch.object(operations,'run',side_effect=command):
                 operations.uninstall('uninstall:example.com')
             docker=[args for args in calls if args and args[0]=='docker']
-            self.assertEqual(docker,[['docker','compose','-f',str(base/'compose.proxy.json'),'down']])
+            self.assertEqual(docker,[
+                ['docker','compose','-f',str(base/'compose.proxy.json'),'down'],
+                ['docker','compose','-f',str(base/'compose.gbrain.json'),'down'],
+            ])
 
     def test_resume_failure_returns_error_even_after_snapshot_success(self):
         with tempfile.TemporaryDirectory() as td:

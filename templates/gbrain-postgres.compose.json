@@ -1,0 +1,48 @@
+{
+  "name": "oracle-gbrain",
+  "services": {
+    "postgres": {
+      "image": "pgvector/pgvector@sha256:de5bb95ded567f98e342a29f188f8053b2e8d344cb9ccd52cbdfe15f720cfde7",
+      "container_name": "oracle-gbrain-postgres",
+      "restart": "unless-stopped",
+      "ports": ["127.0.0.1:5434:5432"],
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "postgres",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/gbrain_admin_password"
+      },
+      "secrets": ["gbrain_admin_password"],
+      "volumes": ["data:/var/lib/postgresql/data"],
+      "command": [
+        "postgres",
+        "-c", "fsync=on",
+        "-c", "full_page_writes=on",
+        "-c", "synchronous_commit=on",
+        "-c", "password_encryption=scram-sha-256"
+      ],
+      "stop_grace_period": "90s",
+      "mem_limit": "1g",
+      "cpus": 1,
+      "pids_limit": 256,
+      "shm_size": "128m",
+      "read_only": true,
+      "tmpfs": ["/var/run/postgresql", "/tmp"],
+      "security_opt": ["no-new-privileges:true"],
+      "healthcheck": {
+        "test": ["CMD-SHELL", "pg_isready -U postgres -d postgres"],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 12,
+        "start_period": "10s"
+      }
+    }
+  },
+  "volumes": {
+    "data": {"name": "oracle-gbrain-data"}
+  },
+  "secrets": {
+    "gbrain_admin_password": {
+      "file": "/etc/oracle-ai-stack/gbrain-postgres-admin-password"
+    }
+  }
+}
