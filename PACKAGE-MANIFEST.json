@@ -114,7 +114,7 @@
     },
     "references/local-patches.md": {
       "executable": false,
-      "sha256": "21d4b159ad5bd7f635ba5bf007bea1335f638f66f9000a5254a3f988f2c5502b"
+      "sha256": "3cd50a74789a73777109c6035ca3b93cd63fac6718b23411080aa4d5a8c72764"
     },
     "references/oci-provisioning.md": {
       "executable": false,
