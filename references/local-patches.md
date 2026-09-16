@@ -62,12 +62,15 @@ applied and must be re-reviewed against the new source. Never force-apply.
 These live in the minified client router and are risky to patch locally; they
 should be reported to OpenClaw upstream rather than edited in the bundle.
 
-- In-app navigation never updates the URL (no `pushState` on page-level nav),
-  so refresh/back/bookmark lose the current page. Combined with the fixed
-  `/plugins` 404 this made the Plugins page un-bookmarkable.
-- Bare `/settings` and `/dashboard` (and other unregistered bare routes) render
-  the Home session view with a 200 instead of redirecting to a real section or
-  showing a not-found state. `/dashboards` and `/settings/<section>` work.
+- In-app navigation never updates the URL. Clicking sidebar links (플러그인,
+  자동화) switches the panel but the address bar keeps whatever path the tab
+  loaded on (e.g. stays `/dashboard` after clicking 플러그인). No `pushState`
+  on page-level nav, so refresh/back/bookmark lose the current page.
+- `/settings` and `/dashboard` are registered client routes
+  (`settings:{path:'/settings'}`, `dashboard:{path:'/dashboard'}`) yet a direct
+  load renders the plain chat/session shell with no settings or dashboard UI.
+  This is the same router location-install defect as the URL issue, not a
+  missing route. `/settings/<section>` leaf routes render correctly.
 
 ## Re-apply after a package update
 
