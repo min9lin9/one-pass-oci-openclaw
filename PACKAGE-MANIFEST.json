@@ -14,7 +14,7 @@
     },
     "CHANGELOG.md": {
       "executable": false,
-      "sha256": "b16b4034cc81ff21705b64e014b2e58a3bb5053b13e99745817889c304a318b3"
+      "sha256": "54d9d2c69ee267ab3cd45f8a222954b94719e84a0707932ad6776833d6b24809"
     },
     "LICENSE": {
       "executable": false,
@@ -22,7 +22,7 @@
     },
     "README.md": {
       "executable": false,
-      "sha256": "8850dba8f64f4ad428520e7c8907b2b80bcd299e89e11ec0dcefe8d5373af957"
+      "sha256": "aaa5783a6ba81df9e074df8dbdc2e2d758ca54b2a82e1582bafd27ca65720ac6"
     },
     "REVIEW.md": {
       "executable": false,
@@ -38,7 +38,7 @@
     },
     "TEST-REPORT.md": {
       "executable": false,
-      "sha256": "b1aab32ec6b0c7bc45bf47b0cf80d2e461f33a6a15392e2d6cb9c0c1ca0a8119"
+      "sha256": "07a3164adec44965bbb90038cfb9788e0828a45bdcc0338a89df700c85bf19d1"
     },
     "THIRD_PARTY_NOTICES.md": {
       "executable": false,
@@ -104,13 +104,17 @@
       "executable": false,
       "sha256": "c13386290c4844afcecd4b14b175447a65358410553f43988a0b85d201abea6f"
     },
+    "references/gbrain-postgres.md": {
+      "executable": false,
+      "sha256": "0b63976d33deeabc22af271ff61770ff8fb5cf2f157366e29553ba1c081d37ac"
+    },
     "references/gstack.md": {
       "executable": false,
       "sha256": "6710a5413354ebd378749cb1f95940bde3035db63ef16206396a13edd154d228"
     },
     "references/lifecycle.md": {
       "executable": false,
-      "sha256": "237014d4ecdb63c75b0d7b9a44ec284a8886e53051f32cf35c9bb30d19dc92c4"
+      "sha256": "14f6f3252b337ff7e6f075c46e88bf7f98495c1567a44885c3b78e623bbd1596"
     },
     "references/local-patches.md": {
       "executable": false,
@@ -190,7 +194,7 @@
     },
     "scripts/gbrain_install.py": {
       "executable": false,
-      "sha256": "fe6f729a410e4edc9ec5277a6ea8b7f8ff139f5a9535dafbd19340be9361bbff"
+      "sha256": "73e454d5dbc58b2f5df4a9df9eaa18cc5d6502437a1535ae443c46e2ab90db38"
     },
     "scripts/gstack_full.py": {
       "executable": false,
@@ -210,7 +214,7 @@
     },
     "scripts/memory_cli.py": {
       "executable": false,
-      "sha256": "6a8e083be9fe71fba9efcc5925f5c5aaa47ae4fd30f1003902e611f958614471"
+      "sha256": "1379c6d3f934dfe0727ac70727e859c4ea2d7282c02ab604da0c8296ff9777fa"
     },
     "scripts/oci_provision.py": {
       "executable": false,
@@ -218,7 +222,7 @@
     },
     "scripts/operations.py": {
       "executable": false,
-      "sha256": "18a58d13e61b080323af69b4378b6614a4fbadaea03b02f6de1053543a98f6a3"
+      "sha256": "c1d7cbc90bbefd2f5a2ee1895c07b3ec365cca2a67c8c41fe3d86b3a13ae4ca7"
     },
     "scripts/operator_lock.py": {
       "executable": false,
@@ -234,7 +238,7 @@
     },
     "scripts/process_guard.py": {
       "executable": false,
-      "sha256": "ff94a4070e3c56d4c5c5adb4e66a96c65a71a4d1f1814946ff5b11ece8ae44d2"
+      "sha256": "27792b5cd31bbe98d8490cec080531b966f2be280cf68abf6bfe74adc2a15be8"
     },
     "scripts/profile_admin.py": {
       "executable": false,
@@ -242,7 +246,7 @@
     },
     "scripts/profile_spec.py": {
       "executable": false,
-      "sha256": "19428071cfaf4759264111afd682eec2da42b231d2de346062933cc38257ad5b"
+      "sha256": "33dc6ec1aa73f8a2c9568ed219a5652d5bcdd2ca56f7f7db70d225dd88069ef5"
     },
     "scripts/profiles_runtime.py": {
       "executable": false,
@@ -280,6 +284,10 @@
       "executable": false,
       "sha256": "0207b1c56ad05a70ba97e58701ae4ce068724bf3137015595bcb732a7897724d"
     },
+    "templates/gbrain-postgres.compose.json": {
+      "executable": false,
+      "sha256": "5cf42cc73756fda737ae5b92dc92c3716d0b8ea165cae868b7077e0432bc3074"
+    },
     "templates/profiles/development/AGENTS.md": {
       "executable": false,
       "sha256": "d4bdc87143504811d1a1e303d3ab38049fd41ec36cf03aa0ebc3be441127804a"
@@ -304,13 +312,21 @@
       "executable": false,
       "sha256": "4d959bd25f3883c2e6477897519f4dcbd28d8cf14f61e4ee8db32ae029014bd8"
     },
+    "tests/test_gbrain_postgres.py": {
+      "executable": false,
+      "sha256": "8de1c5054accc1517acf07347d265287348e903b65599ceab6536d6557ea6912"
+    },
     "tests/test_local_patches.py": {
       "executable": false,
       "sha256": "57d9c52d1715fef85be5681a52c77867d8dae71680c9930080f546ba3370bd10"
     },
+    "tests/test_memory_cli.py": {
+      "executable": false,
+      "sha256": "1fadf3801e8521498c3880bfb3b87e5c00e8108bf82f7c9f180d2d9262555e11"
+    },
     "tests/test_review.py": {
       "executable": false,
-      "sha256": "1e31b61695fa8cd343aa5e692e35255975141002480a69622a38ccaec2e86ced"
+      "sha256": "e379b6b423a0362ebfd58be2164a0ba8004c59545463167162eea62e2e2934d1"
     },
     "tests/test_source_compat.py": {
       "executable": false,
@@ -322,7 +338,7 @@
     },
     "tests/test_v03.py": {
       "executable": false,
-      "sha256": "e9ad0faecc05609e222b11cb1b8ff93b198b5fd0bbb52836611832cff4a58576"
+      "sha256": "f7441b3294677711f21e351ed3f2ff3893af7ffe67cc499057ead5fa60b60ec9"
     }
   },
   "repository": "min9lin9/one-pass-oci-openclaw",
