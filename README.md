@@ -137,6 +137,7 @@ python3 scripts/install_skill.py
 | 운영 | `operations` / Unix `openclaw` / 18789 / GBrain·gstack |
 | 기획 | `planning` / Unix `clawplan` / 19789 / ECC 기획·설계 방법론 |
 | 개발 | `development` / Unix `clawdev` / 20789 / ECC TDD·리뷰 방법론 |
+| 재무 | `finance` / Unix `clawfin` / 21789 / 시장·리서치 스케줄 작업 |
 | HTTPS | Docker 기반 Caddy, Cloudflare DNS-01 인증서 |
 | 보조 도구 | 제한된 공개 페이지 읽기, 문서·Mermaid·MCP 보조 도구 |
 | 복구 | restic 암호화 백업, 관리되는 GBrain PostgreSQL 볼륨 포함, 별도 위치 복원 검증 |

@@ -270,7 +270,7 @@ class RemoteNetworkTests(unittest.TestCase):
             (state / "network.json").write_text(json.dumps({"access_mode": "public", "public_ip": "8.8.4.4"}))
             (state / "gbrain-install.json").write_text("{}")
             (base / "compose.proxy.json").write_text("{}")
-            profiles = {name: {"gateway": "PASS", "auth": "NOT_PROBED"} for name in ("operations", "planning", "development")}
+            profiles = {name: {"gateway": "PASS", "auth": "NOT_PROBED"} for name in ("operations", "planning", "development", "finance")}
             calls = []
 
             def run(args, **kwargs):

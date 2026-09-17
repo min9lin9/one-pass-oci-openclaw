@@ -7,7 +7,7 @@ import grp, hashlib, json, os, pathlib, pwd, re, secrets, subprocess, uuid, date
 from evidence import exact_marker, selected_model_observed
 from process_guard import run_bounded
 from stacklib import StackError, atom_json, run
-from profile_spec import PROFILES, get_profile, environment, config_for, gateway_unit, auth_mode, provider_for, choose_model
+from profile_spec import PROFILES, WORKERS, get_profile, environment, config_for, gateway_unit, auth_mode, provider_for, choose_model
 BASE=pathlib.Path('/opt/oracle-ai-stack');STATE=pathlib.Path('/var/lib/oracle-ai-stack');ETC=pathlib.Path('/etc/oracle-ai-stack')
 
 
@@ -102,7 +102,7 @@ def install(cfg,stage,lock):
     for p in PROFILES.values(): account(p)
     try: grp.getgrnam('clawworkers')
     except KeyError: run(['groupadd','--system','clawworkers'])
-    for name in ('planning','development'): run(['usermod','-aG','clawworkers',PROFILES[name].user])
+    for name in WORKERS: run(['usermod','-aG','clawworkers',PROFILES[name].user])
     policy=save_policy(cfg)
     for p in PROFILES.values():
         from fssecure import directory
@@ -131,7 +131,8 @@ def install(cfg,stage,lock):
         write(target,role,p.user,0o644)
         atom_json(receipt,{'sha256':hashlib.sha256(role.encode()).hexdigest()})
         # Retain original ECC text and license as sources; local adapter defines actual capabilities.
-        if p.name!='operations':
+        # Only the coding worker profiles carry ECC method references.
+        if p.name in ('planning','development'):
             files=['planner.md','architect.md'] if p.name=='planning' else ['tdd-guide.md','code-reviewer.md']
             for name in files:
                 src=stage/'aux/ecc/agents'/name
@@ -145,7 +146,7 @@ def install(cfg,stage,lock):
     install_worker_units()
     run(['systemctl','daemon-reload'])
     for p in PROFILES.values(): run(['systemctl','enable','--now',p.unit])
-    for name in ('planning','development'): run(['systemctl','enable','--now','oracle-worker-'+name+'.socket'])
+    for name in WORKERS: run(['systemctl','enable','--now','oracle-worker-'+name+'.socket'])
     atom_json(STATE/'profiles.json',{'schema':3,'profiles':{n:{'user':p.user,'port':p.port,'state':str(p.state),'workspace':str(p.workspace),'unit':p.unit} for n,p in PROFILES.items()},'orchestration':'UNIX_SOCKET_JOB_BRIDGE','live_delegation':'NOT_TESTED'})
     results={}
     for p in PROFILES.values():

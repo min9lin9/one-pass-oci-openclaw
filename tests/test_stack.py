@@ -147,7 +147,7 @@ class OpenClawOnlyWorkflowTests(unittest.TestCase):
             (home/'.local/state/oracle-ai-stack/runtime-checks.json').write_text('{}')
             (state/'gbrain-install.json').write_text('{}')
             (state/'network.json').write_text('{"tailscale_ip":"100.64.1.1"}')
-            profiles={name:{'gateway':'PASS','auth':'NOT_PROBED'} for name in ('operations','planning','development')}
+            profiles={name:{'gateway':'PASS','auth':'NOT_PROBED'} for name in ('operations','planning','development','finance')}
             def command(args,**kwargs):
                 stdout=b'proxy\n' if args[:4]==['docker','compose','-f',str(base/'compose.proxy.json')] else b''
                 return __import__('subprocess').CompletedProcess(args,0,stdout,b'')

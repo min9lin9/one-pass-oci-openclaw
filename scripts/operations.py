@@ -104,7 +104,7 @@ def backup():
         if not summary or not summary.get('snapshot_id'): raise StackError('restic did not report a snapshot ID')
         restic('check')
         return {'snapshot':summary['snapshot_id'],'repository':str(REPO),'encrypted':True,
-                'scope':'Three OpenClaw profile homes including retained PGlite, dedicated GBrain PostgreSQL and proxy TLS volumes, managed source/configuration/state, units and drop-ins, reader policy; legacy container volumes are not included',
+                'scope':str(len(PROFILES))+' OpenClaw profile homes including retained PGlite, dedicated GBrain PostgreSQL and proxy TLS volumes, managed source/configuration/state, units and drop-ins, reader policy; legacy container volumes are not included',
                 'offsite':'PENDING export to local PC or a separate backup target'}
     finally:
         errors=[]

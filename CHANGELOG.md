@@ -1,3 +1,14 @@
+# Unreleased: finance profile — 2026-09-17
+
+Add a fourth user-facing `finance` profile (Unix `clawfin`, loopback 21789,
+agent `finance`) for scheduled market/research jobs migrated from the Hermes
+VM. User-facing profiles (operations, finance) get messaging and memory tools
+and default to ChatGPT auth; worker profiles (planning, development) are
+unchanged. Finance is loopback-only with no public origin and is not a
+clawworkers member or dispatch target. Backup scope now covers all profile
+homes. See references/profiles-and-auth.md.
+These changes have not been committed or published as a new GitHub release.
+
 # Unreleased: clean Gateway restart and PostgreSQL memory — 2026-09-16
 
 Use Restart=always for Gateway units so a normal plugin-triggered supervisor

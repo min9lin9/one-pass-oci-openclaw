@@ -126,13 +126,14 @@ class CloudTests(unittest.TestCase):
 class ProfileTests(unittest.TestCase):
     def test_unique_os_accounts_ports_state(self):
         for field in ('user','port','home','state','workspace','unit'):
-            self.assertEqual(len({getattr(p,field) for p in ps.PROFILES.values()}),3)
+            self.assertEqual(len({getattr(p,field) for p in ps.PROFILES.values()}),len(ps.PROFILES))
     def test_native_config_entries_not_retired_list(self):
         c=ps.config_for(ps.PROFILES['planning'],{'DOMAIN':'example.com'},'random')
         self.assertIn('entries',c['agents']);self.assertNotIn('list',c['agents'])
     def test_default_mixed_auth(self):
         c={'OPENCODE_API_KEY':'test'}
         self.assertEqual(ps.auth_mode(c,'operations'),'chatgpt');self.assertEqual(ps.auth_mode(c,'planning'),'opencode-go')
+        self.assertEqual(ps.auth_mode(c,'finance'),'chatgpt')
     def test_default_no_api_key_all_chatgpt(self):
         self.assertTrue(all(ps.auth_mode({},n)=='chatgpt' for n in ps.PROFILES))
     def test_zen_config(self):self.assertEqual(ps.auth_mode({'OPENCODE_API_KEY':'x','OPENCODE_CATALOG':'zen'},'development'),'opencode')
@@ -170,8 +171,14 @@ class ProfileTests(unittest.TestCase):
     def test_bun_path_is_operations_only(self):
         bun='/home/openclaw/.local/share/oracle-ai-stack/bun/bin'
         self.assertIn(bun,ps.environment(ps.PROFILES['operations'])['PATH'])
-        for name in ('planning','development'):
+        for name in ('planning','development','finance'):
             self.assertNotIn('/bun/bin',ps.environment(ps.PROFILES[name])['PATH'])
+    def test_finance_is_user_facing_not_worker(self):
+        self.assertIn('finance',ps.USER_FACING);self.assertNotIn('finance',ps.WORKERS)
+        c=ps.config_for(ps.PROFILES['finance'],{'DOMAIN':'example.com'},'t')
+        self.assertIn('message',c['tools']['allow'])
+        self.assertNotIn('publicOrigin',c['gateway'])
+        self.assertIn('NoNewPrivileges=true',ps.gateway_unit(ps.PROFILES['finance']))
     def test_assignment_exclusive_ops(self):
         m=json.loads((ROOT/'manifests/bootstrap-sources.json').read_text())
         self.assertEqual(m['roles']['operations']['exclusive'],['gbrain','gstack'])
@@ -187,13 +194,13 @@ class ProfileTests(unittest.TestCase):
             self.assertNotIn('model-secret',ssh.call_args.args[1])
     def test_gbrain_not_npm_or_paid_autoinit(self):
         text=(ROOT/'scripts/gbrain_install.py').read_text();self.assertIn("'--no-embedding'",text);self.assertNotIn("'npm','install','gbrain'",text)
-    def test_three_profile_backup_scope(self):
+    def test_profile_backup_scope(self):
         import operations
         with tempfile.TemporaryDirectory() as td:
             root=pathlib.Path(td).resolve();state=root/'state';state.mkdir()
             (state/'managed.json').write_text('{"domain":"example.com"}')
             profiles={}
-            for name in ('operations','planning','development'):
+            for name in ('operations','planning','development','finance'):
                 home=root/name;home.mkdir()
                 profiles[name]=NS(home=home,state=home/'.state',unit='oracle-openclaw-'+name+'.service')
             real_exists=pathlib.Path.exists

@@ -12,6 +12,7 @@ OpenClaw `sessions_send` crosses profile boundaries or that a role label provide
 | operations | openclaw | /home/openclaw/.openclaw-operations | 127.0.0.1:18789 | GBrain/gstack + curated bundle |
 | planning | clawplan | /home/clawplan/.openclaw-planning | 127.0.0.1:19789 | ECC planner/architect |
 | development | clawdev | /home/clawdev/.openclaw-development | 127.0.0.1:20789 | ECC tdd-guide/code-reviewer |
+| finance | clawfin | /home/clawfin/.openclaw-finance | 127.0.0.1:21789 | scheduled market/research jobs |
 
 Workers are in clawworkers for a single global execution lock, not each other's home group.
 Task sockets are destination-owned, group openclaw 0660 and verify SO_PEERCRED.
